@@ -29,6 +29,9 @@ import tempfile
 import win32print
 import win32ui
 import logging
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 class HospitalManagementSystem:
     def __init__(self, root):
@@ -37,12 +40,60 @@ class HospitalManagementSystem:
         self.root.geometry("1200x700")
         self.root.resizable(True, True)
         
-         # Initialize logger
+        # Initialize logger
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(logging.DEBUG)
         
-        # Initialize the loading screen directly on the main window
+        # Email configuration
+        self.email_config = {
+            'smtp_server': 'smtp.gmail.com',
+            'smtp_port': 587,
+            'sender_email': 'Mubashirabbasedu4@gmail.com',  # Replace with your email
+            'sender_password': 'rlzfzjdquhfiifsg',  # Replace with your app-specific password
+            'admin_email': 'mubashirabbasedu4@gmail.com'  # Replace with the admin's email address
+        }
+        
+        # Initialize the loading screen only once
         self.show_modern_loading_screen()
+
+    def send_email_notification(self, recipient_email, subject, body):
+        try:
+            msg = MIMEMultipart()
+            msg['From'] = self.email_config['sender_email']
+            msg['To'] = recipient_email
+            msg['Subject'] = subject
+
+            html_message = f"""
+            <html>
+                <body style="font-family: Arial, sans-serif; color: #333; background-color: #f4f4f9; padding: 20px;">
+                    <div style="max-width: 600px; margin: auto; background-color: #ffffff; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+                        <div style="background-color: #007bff; padding: 20px; text-align: center; border-top-left-radius: 10px; border-top-right-radius: 10px;">
+                            <h1 style="color: white; margin: 0;">Grow Up Hospital</h1>
+                        </div>
+                        <div style="padding: 20px;">
+                            <h2 style="color: #007bff;">{subject}</h2>
+                            <p style="font-size: 16px; line-height: 1.6;">{body}</p>
+                            <hr style="border: 1px solid #e6f0fa;">
+                            <p style="font-size: 14px; color: #495057; text-align: center;">
+                                Developed by: Mubashir Abbas<br>
+                                Contact: support@growuphospital.com
+                            </p>
+                        </div>
+                    </div>
+                </body>
+            </html>
+            """
+            msg.attach(MIMEText(html_message, 'html'))
+
+            with smtplib.SMTP(self.email_config['smtp_server'], self.email_config['smtp_port']) as server:
+                server.starttls()
+                server.login(self.email_config['sender_email'], self.email_config['sender_password'])
+                server.sendmail(self.email_config['sender_email'], recipient_email, msg.as_string())
+            self.logger.info(f"Email sent to {recipient_email}")
+        except Exception as e:
+            self.logger.error(f"Failed to send email to {recipient_email}: {e}")
+            messagebox.showerror("Email Error", f"Failed to send email notification: {e}")
+
 
     def show_modern_loading_screen(self):
         # Create loading overlay on main window
@@ -589,266 +640,245 @@ class HospitalManagementSystem:
             messagebox.showerror("Database Error", f"Failed to authenticate user: {e}")
             self.show_login_screen(user_type)
             
+
     def show_patient_registration(self, edit_mode=False, user_id=None):
-        # Clear main frame
-        for widget in self.main_frame.winfo_children():
-            widget.destroy()
+            # Clear main frame
+            for widget in self.main_frame.winfo_children():
+                widget.destroy()
 
-        # Create scrollable canvas for form
-        canvas = tk.Canvas(self.main_frame, bg="#f0f8ff")
-        scrollbar = ttk.Scrollbar(self.main_frame, orient="vertical", command=canvas.yview)
-        scrollable_frame = tk.Frame(canvas, bg="#f0f8ff", padx=20, pady=20)
+            # Create scrollable canvas for form
+            canvas = tk.Canvas(self.main_frame, bg="#e6f0fa")
+            scrollbar = ttk.Scrollbar(self.main_frame, orient="vertical", command=canvas.yview)
+            scrollable_frame = tk.Frame(canvas, bg="#e6f0fa", padx=20, pady=20)
 
-        # Configure canvas scrolling
-        scrollable_frame.bind(
-            "<Configure>",
-            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
-        )
-        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
-        canvas.configure(yscrollcommand=scrollbar.set)
-        canvas.pack(side="left", fill="both", expand=True)
-        scrollbar.pack(side="right", fill="y")
+            # Configure canvas scrolling
+            scrollable_frame.bind(
+                "<Configure>",
+                lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+            )
+            canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+            canvas.configure(yscrollcommand=scrollbar.set)
+            canvas.pack(side="left", fill="both", expand=True)
+            scrollbar.pack(side="right", fill="y")
 
-        # Style for combobox and buttons
-        style = ttk.Style()
-        style.configure("TCombobox", fieldbackground="#ffffff", background="#ffffff")
-        style.configure("TButton", padding=10)
+            # Style for combobox and buttons
+            style = ttk.Style()
+            style.configure("TCombobox", fieldbackground="#ffffff", background="#ffffff", font=("Arial", 14))
+            style.configure("TButton", padding=10, font=("Arial", 12, "bold"))
 
-        # Title - change based on mode
-        title_text = "Edit Patient Profile" if edit_mode else "Patient Registration"
-        tk.Label(
-            scrollable_frame,
-            text=title_text,
-            font=("Arial", 24, "bold"),
-            bg="#f0f8ff",
-            fg="#2c3e50"
-        ).grid(row=0, column=0, columnspan=2, pady=(0, 20))
+            # Header
+            header_frame = tk.Frame(scrollable_frame, bg="#007bff")
+            header_frame.grid(row=0, column=0, columnspan=2, sticky="ew")
+            tk.Label(
+                header_frame,
+                text="Edit Patient Profile" if edit_mode else "Patient Registration",
+                font=("Arial", 26, "bold"),
+                bg="#007bff",
+                fg="white"
+            ).pack(pady=15)
 
-        # Personal information section
-        tk.Label(
-            scrollable_frame,
-            text="Personal Information",
-            font=("Arial", 16, "bold"),
-            bg="#f0f8ff",
-            fg="#34495e"
-        ).grid(row=1, column=0, columnspan=2, pady=(10, 15), sticky="w")
-
-        # Define form fields
-        fields = [
-            ("First Name:", 2),
-            ("Last Name:", 3),
-            ("Date of Birth (YYYY-MM-DD):", 4),
-            ("Gender:", 5),
-            ("Blood Type:", 6),
-            ("Phone:", 7),
-            ("Address:", 8)
-        ]
-
-        # Create labels and entries for fields
-        self.reg_first_name = tk.Entry(scrollable_frame, font=("Arial", 12))
-        self.reg_last_name = tk.Entry(scrollable_frame, font=("Arial", 12))
-        self.reg_dob = tk.Entry(scrollable_frame, font=("Arial", 12))
-        self.reg_gender = ttk.Combobox(scrollable_frame, values=["Male", "Female", "Other"], state="readonly")
-        self.reg_blood_type = ttk.Combobox(scrollable_frame, 
-                                        values=["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"], 
-                                        state="readonly")
-        self.reg_phone = tk.Entry(scrollable_frame, font=("Arial", 12))
-        self.reg_address = tk.Text(scrollable_frame, font=("Arial", 12), height=3, width=30)
-
-        # Grid layout for fields
-        for label_text, row in fields:
+            # Personal information section
             tk.Label(
                 scrollable_frame,
-                text=label_text,
-                font=("Arial", 12),
-                bg="#f0f8ff",
-                fg="#2c3e50"
-            ).grid(row=row, column=0, pady=8, padx=10, sticky="e")
-        
-        self.reg_first_name.grid(row=2, column=1, pady=8, padx=10, sticky="w")
-        self.reg_last_name.grid(row=3, column=1, pady=8, padx=10, sticky="w")
-        self.reg_dob.grid(row=4, column=1, pady=8, padx=10, sticky="w")
-        self.reg_gender.grid(row=5, column=1, pady=8, padx=10, sticky="w")
-        self.reg_blood_type.grid(row=6, column=1, pady=8, padx=10, sticky="w")
-        self.reg_phone.grid(row=7, column=1, pady=8, padx=10, sticky="w")
-        self.reg_address.grid(row=8, column=1, pady=8, padx=10, sticky="w")
+                text="Personal Information",
+                font=("Arial", 18, "bold"),
+                bg="#e6f0fa",
+                fg="#495057"
+            ).grid(row=1, column=0, columnspan=2, pady=(20, 15), sticky="w")
 
-        # Profile photo section
-        tk.Label(
-            scrollable_frame,
-            text="Profile Photo",
-            font=("Arial", 16, "bold"),
-            bg="#f0f8ff",
-            fg="#34495e"
-        ).grid(row=9, column=0, columnspan=2, pady=(20, 15), sticky="w")
+            # Define form fields
+            fields = [
+                ("First Name:", 2),
+                ("Last Name:", 3),
+                ("Email:", 4),
+                ("Date of Birth (YYYY-MM-DD):", 5),
+                ("Gender:", 6),
+                ("Blood Type:", 7),
+                ("Phone:", 8),
+                ("Address:", 9)
+            ]
 
-        tk.Label(
-            scrollable_frame,
-            text="Upload Photo:",
-            font=("Arial", 12),
-            bg="#f0f8ff",
-            fg="#2c3e50"
-        ).grid(row=10, column=0, pady=8, padx=10, sticky="e")
+            # Create labels and entries for fields
+            self.reg_first_name = tk.Entry(scrollable_frame, font=("Arial", 14), relief="flat", borderwidth=1, bg="#ffffff")
+            self.reg_last_name = tk.Entry(scrollable_frame, font=("Arial", 14), relief="flat", borderwidth=1, bg="#ffffff")
+            self.reg_email = tk.Entry(scrollable_frame, font=("Arial", 14), relief="flat", borderwidth=1, bg="#ffffff")
+            self.reg_dob = tk.Entry(scrollable_frame, font=("Arial", 14), relief="flat", borderwidth=1, bg="#ffffff")
+            self.reg_gender = ttk.Combobox(scrollable_frame, values=["Male", "Female", "Other"], state="readonly")
+            self.reg_blood_type = ttk.Combobox(scrollable_frame, 
+                                            values=["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"], 
+                                            state="readonly")
+            self.reg_phone = tk.Entry(scrollable_frame, font=("Arial", 14), relief="flat", borderwidth=1, bg="#ffffff")
+            self.reg_address = tk.Text(scrollable_frame, font=("Arial", 14), height=3, width=30)
 
-        self.photo_path = tk.StringVar()  # Store photo file path
-        photo_button = tk.Button(
-            scrollable_frame,
-            text="Choose Image",
-            font=("Arial", 10),
-            bg="#3498db",
-            fg="white",
-            command=lambda: self.upload_photo(scrollable_frame)
-        )
-        photo_button.grid(row=10, column=1, pady=8, padx=10, sticky="w")
+            # Grid layout for fields
+            for label_text, row in fields:
+                tk.Label(
+                    scrollable_frame,
+                    text=label_text,
+                    font=("Arial", 14),
+                    bg="#e6f0fa",
+                    fg="#495057"
+                ).grid(row=row, column=0, pady=10, padx=15, sticky="e")
+            
+            self.reg_first_name.grid(row=2, column=1, pady=10, padx=15, sticky="w")
+            self.reg_last_name.grid(row=3, column=1, pady=10, padx=15, sticky="w")
+            self.reg_email.grid(row=4, column=1, pady=10, padx=15, sticky="w")
+            self.reg_dob.grid(row=5, column=1, pady=10, padx=15, sticky="w")
+            self.reg_gender.grid(row=6, column=1, pady=10, padx=15, sticky="w")
+            self.reg_blood_type.grid(row=7, column=1, pady=10, padx=15, sticky="w")
+            self.reg_phone.grid(row=8, column=1, pady=10, padx=15, sticky="w")
+            self.reg_address.grid(row=9, column=1, pady=10, padx=15, sticky="w")
 
-        # Photo display label
-        self.photo_label = tk.Label(scrollable_frame, bg="#f0f8ff")
-        self.photo_label.grid(row=11, column=0, columnspan=2, pady=10)
-
-        # Login credentials section (only for new registration)
-        if not edit_mode:
+            # Profile photo section
+            photo_frame = tk.Frame(scrollable_frame, bg="#f8f9fa", relief="groove", borderwidth=2)
+            photo_frame.grid(row=10, column=0, columnspan=2, pady=(20, 15), padx=10, sticky="ew")
             tk.Label(
-                scrollable_frame,
-                text="Login Credentials",
-                font=("Arial", 16, "bold"),
-                bg="#f0f8ff",
-                fg="#34495e"
-            ).grid(row=12, column=0, columnspan=2, pady=(20, 15), sticky="w")
-
-            tk.Label(
-                scrollable_frame,
-                text="Username:",
-                font=("Arial", 12),
-                bg="#f0f8ff",
-                fg="#2c3e50"
-            ).grid(row=13, column=0, pady=8, padx=10, sticky="e")
-            self.reg_username = tk.Entry(scrollable_frame, font=("Arial", 12))
-            self.reg_username.grid(row=13, column=1, pady=8, padx=10, sticky="w")
+                photo_frame,
+                text="Profile Photo",
+                font=("Arial", 18, "bold"),
+                bg="#f8f9fa",
+                fg="#495057"
+            ).pack(pady=(10, 5))
 
             tk.Label(
-                scrollable_frame,
-                text="Password:",
-                font=("Arial", 12),
-                bg="#f0f8ff",
-                fg="#2c3e50"
-            ).grid(row=14, column=0, pady=8, padx=10, sticky="e")
-            self.reg_password = tk.Entry(scrollable_frame, font=("Arial", 12), show="*")
-            self.reg_password.grid(row=14, column=1, pady=8, padx=10, sticky="w")
+                photo_frame,
+                text="Upload Photo:",
+                font=("Arial", 14),
+                bg="#f8f9fa",
+                fg="#495057"
+            ).pack(side="left", padx=15, pady=5)
 
-            tk.Label(
-                scrollable_frame,
-                text="Confirm Password:",
-                font=("Arial", 12),
-                bg="#f0f8ff",
-                fg="#2c3e50"
-            ).grid(row=15, column=0, pady=8, padx=10, sticky="e")
-            self.reg_confirm_password = tk.Entry(scrollable_frame, font=("Arial", 12), show="*")
-            self.reg_confirm_password.grid(row=15, column=1, pady=8, padx=10, sticky="w")
+            self.photo_path = tk.StringVar()
+            photo_button = ttk.Button(
+                photo_frame,
+                text="Choose Image",
+                command=lambda: self.upload_photo(scrollable_frame)
+            )
+            photo_button.pack(side="left", padx=15, pady=5)
 
-        # Buttons
-        button_frame = tk.Frame(scrollable_frame, bg="#f0f8ff")
-        button_frame.grid(row=16, column=0, columnspan=2, pady=20)
+            # Photo display label
+            self.photo_label = tk.Label(scrollable_frame, bg="#e6f0fa")
+            self.photo_label.grid(row=11, column=0, columnspan=2, pady=10)
 
-        if edit_mode:
-            # Load existing patient data
-            try:
-                cursor = self.db_connection.cursor()
-                cursor.execute(
-                    """SELECT p.first_name, p.last_name, p.date_of_birth, p.gender, 
-                            p.blood_type, p.phone, p.address, p.photo_path, u.username
-                    FROM patients p
-                    JOIN users u ON p.user_id = u.user_id
-                    WHERE p.user_id = %s""",
-                    (user_id,)
-                )
-                patient_data = cursor.fetchone()
+            # Login credentials section (only for new registration)
+            if not edit_mode:
+                credentials_frame = tk.Frame(scrollable_frame, bg="#f8f9fa", relief="groove", borderwidth=2)
+                credentials_frame.grid(row=12, column=0, columnspan=2, pady=(20, 15), padx=10, sticky="ew")
+                tk.Label(
+                    credentials_frame,
+                    text="Login Credentials",
+                    font=("Arial", 18, "bold"),
+                    bg="#f8f9fa",
+                    fg="#495057"
+                ).pack(pady=(10, 5))
 
-                if patient_data:
-                    self.reg_first_name.insert(0, patient_data[0])
-                    self.reg_last_name.insert(0, patient_data[1])
-                    self.reg_dob.insert(0, patient_data[2].strftime('%Y-%m-%d') if patient_data[2] else '')
-                    self.reg_gender.set(patient_data[3])
-                    self.reg_blood_type.set(patient_data[4])
-                    self.reg_phone.insert(0, patient_data[5])
-                    self.reg_address.insert("1.0", patient_data[6] or '')
-                    self.photo_path.set(patient_data[7] or '')
-                    
-                    # Display photo if exists
-                    if patient_data[7] and os.path.exists(patient_data[7]):
-                        self.display_photo(patient_data[7])
+                tk.Label(
+                    credentials_frame,
+                    text="Username:",
+                    font=("Arial", 14),
+                    bg="#f8f9fa",
+                    fg="#495057"
+                ).pack(side="left", padx=15, pady=10)
+                self.reg_username = tk.Entry(credentials_frame, font=("Arial", 14), relief="flat", borderwidth=1, bg="#ffffff")
+                self.reg_username.pack(side="left", padx=15, pady=10)
 
-            except Error as e:
-                messagebox.showerror("Database Error", f"Failed to load patient data: {e}")
+                tk.Label(
+                    credentials_frame,
+                    text="Password:",
+                    font=("Arial", 14),
+                    bg="#f8f9fa",
+                    fg="#495057"
+                ).pack(side="left", padx=15, pady=10)
+                self.reg_password = tk.Entry(credentials_frame, font=("Arial", 14), show="*", relief="flat", borderwidth=1, bg="#ffffff")
+                self.reg_password.pack(side="left", padx=15, pady=10)
 
-        register_btn = tk.Button(
-            button_frame,
-            text="Update Profile" if edit_mode else "Register",
-            font=("Arial", 12, "bold"),
-            bg="#2ecc71",
-            fg="white",
-            activebackground="#27ae60",
-            bd=0,
-            padx=20,
-            pady=10,
-            command=lambda: self.register_patient(edit_mode, user_id)
-        )
-        register_btn.pack(side="left", padx=10)
+                tk.Label(
+                    credentials_frame,
+                    text="Confirm Password:",
+                    font=("Arial", 14),
+                    bg="#f8f9fa",
+                    fg="#495057"
+                ).pack(side="left", padx=15, pady=10)
+                self.reg_confirm_password = tk.Entry(credentials_frame, font=("Arial", 14), show="*", relief="flat", borderwidth=1, bg="#ffffff")
+                self.reg_confirm_password.pack(side="left", padx=15, pady=10)
 
-        back_btn = tk.Button(
-            button_frame,
-            text="Cancel",
-            font=("Arial", 12),
-            bg="#e74c3c",
-            fg="white",
-            activebackground="#c0392b",
-            bd=0,
-            padx=20,
-            pady=10,
-            command=self.show_patient_profile if edit_mode else self.show_login_screen
-        )
-        back_btn.pack(side="left", padx=10)
+            # Buttons
+            button_frame = tk.Frame(scrollable_frame, bg="#e6f0fa")
+            button_frame.grid(row=13 if not edit_mode else 12, column=0, columnspan=2, pady=20)
 
-    # Handle photo upload for registration
-    def upload_photo(self, frame):
-        # Open file dialog to select image
-        file_path = filedialog.askopenfilename(
-            filetypes=[("Image files", "*.png *.jpg *.jpeg *.gif *.bmp")]
-        )
-        if file_path:
-            self.photo_path.set(file_path)  # Store file path
-            # Load and display image
-            image = Image.open(file_path)
-            image = image.resize((150, 150), Image.LANCZOS)  # Resize to 150x150
-            photo = ImageTk.PhotoImage(image)
-            self.photo_label.configure(image=photo)
-            self.photo_label.image = photo  # Keep reference to avoid garbage collection
+            if edit_mode:
+                # Load existing patient data
+                try:
+                    cursor = self.db_connection.cursor()
+                    cursor.execute(
+                        """SELECT p.first_name, p.last_name, p.email, p.date_of_birth, p.gender, 
+                                p.blood_type, p.phone, p.address, p.photo_path, u.username
+                        FROM patients p
+                        JOIN users u ON p.user_id = u.user_id
+                        WHERE p.user_id = %s""",
+                        (user_id,)
+                    )
+                    patient_data = cursor.fetchone()
 
-    # Process patient registration
+                    if patient_data:
+                        self.reg_first_name.insert(0, patient_data[0])
+                        self.reg_last_name.insert(0, patient_data[1])
+                        self.reg_email.insert(0, patient_data[2] if patient_data[2] else '')
+                        self.reg_dob.insert(0, patient_data[3].strftime('%Y-%m-%d') if patient_data[3] else '')
+                        self.reg_gender.set(patient_data[4])
+                        self.reg_blood_type.set(patient_data[5])
+                        self.reg_phone.insert(0, patient_data[6])
+                        self.reg_address.insert("1.0", patient_data[7] or '')
+                        self.photo_path.set(patient_data[8] or '')
+                        
+                        # Display photo if exists
+                        if patient_data[8] and os.path.exists(patient_data[8]):
+                            self.display_photo(patient_data[8])
+
+                except Error as e:
+                    messagebox.showerror("Database Error", f"Failed to load patient data: {e}")
+
+            register_btn = ttk.Button(
+                button_frame,
+                text="Update Profile" if edit_mode else "Register",
+                command=lambda: self.register_patient(edit_mode, user_id),
+                style="TButton"
+            )
+            register_btn.pack(side="left", padx=15)
+            back_btn = ttk.Button(
+                button_frame,
+                text="Cancel",
+                command=lambda: self.show_patient_profile(user_id) if edit_mode else self.show_login_screen(),
+                style="TButton"
+            )
+            back_btn.pack(side="left", padx=15)
+
     def register_patient(self, edit_mode=False, user_id=None):
-        # Get form data
         first_name = self.reg_first_name.get()
         last_name = self.reg_last_name.get()
+        email = self.reg_email.get()
         dob = self.reg_dob.get()
         gender = self.reg_gender.get()
         blood_type = self.reg_blood_type.get()
         phone = self.reg_phone.get()
         address = self.reg_address.get("1.0", tk.END).strip()
         photo_path = self.photo_path.get() if self.photo_path.get() else None
-        
+
         if not edit_mode:
             username = self.reg_username.get()
             password = self.reg_password.get()
             confirm_password = self.reg_confirm_password.get()
 
-        # Validate inputs
-        if not all([first_name, last_name, dob, gender, phone, address]):
+        if not all([first_name, last_name, email, dob, gender, phone, address]):
             messagebox.showerror("Error", "All fields except blood type are required")
+            return
+        if not "@" in email or not "." in email:
+            messagebox.showerror("Error", "Invalid email format")
             return
 
         if not edit_mode and (not username or not password or not confirm_password):
             messagebox.showerror("Error", "All fields are required")
             return
-
         if not edit_mode and password != confirm_password:
             messagebox.showerror("Error", "Passwords do not match")
             return
@@ -863,59 +893,54 @@ class HospitalManagementSystem:
         try:
             if self.db_connection.in_transaction:
                 self.db_connection.rollback()
-            
             self.db_connection.start_transaction()
             cursor = self.db_connection.cursor()
-            
+
             if edit_mode:
-                # Update existing patient
                 cursor.execute(
                     """UPDATE patients 
-                    SET first_name = %s, last_name = %s, date_of_birth = %s, 
-                        gender = %s, blood_type = %s, phone = %s, address = %s,
-                        photo_path = %s
+                    SET first_name = %s, last_name = %s, email = %s, date_of_birth = %s, 
+                        gender = %s, blood_type = %s, phone = %s, address = %s, photo_path = %s
                     WHERE user_id = %s""",
-                    (first_name, last_name, dob, gender, blood_type, phone, address, photo_path, user_id)
+                    (first_name, last_name, email, dob, gender, blood_type, phone, address, photo_path, user_id)
                 )
-                
-                # Check if password was provided (optional update)
                 if hasattr(self, 'reg_password') and self.reg_password.get():
                     hashed_password = self.hash_password(self.reg_password.get())
                     cursor.execute(
                         "UPDATE users SET password = %s WHERE user_id = %s",
                         (hashed_password, user_id)
                     )
-                
                 self.db_connection.commit()
                 messagebox.showinfo("Success", "Patient profile updated successfully!")
                 self.show_patient_profile(user_id)
             else:
-                # New registration
-                # Check if username exists
                 cursor.execute("SELECT username FROM users WHERE username = %s", (username,))
                 if cursor.fetchone():
                     messagebox.showerror("Error", "Username already exists")
                     return
-
-                # Insert user
                 hashed_password = self.hash_password(password)
                 cursor.execute(
                     "INSERT INTO users (username, password, user_type) VALUES (%s, %s, 'patient')",
                     (username, hashed_password)
                 )
                 user_id = cursor.lastrowid
-
-                # Insert patient
                 cursor.execute(
                     """INSERT INTO patients 
-                    (user_id, first_name, last_name, date_of_birth, gender, 
-                    blood_type, phone, address, photo_path)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)""",
-                    (user_id, first_name, last_name, dob, gender, 
-                    blood_type, phone, address, photo_path)
+                    (user_id, first_name, last_name, email, date_of_birth, gender, 
+                     blood_type, phone, address, photo_path)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+                    (user_id, first_name, last_name, email, dob, gender, blood_type, phone, address, photo_path)
                 )
-
                 self.db_connection.commit()
+                subject = "Welcome to Grow Up Hospital"
+                body = (
+                    f"Dear {first_name} {last_name},\n\n"
+                    f"Congratulations! Your registration with Grow Up Hospital has been successful.\n"
+                    f"Username: {username}\n"
+                    f"You can now log in to manage your appointments and medical records.\n\n"
+                    f"Thank you for choosing Grow Up Hospital."
+                )
+                self.send_email_notification(email, subject, body)
                 messagebox.showinfo("Success", "Patient registered successfully!")
                 self.show_login_screen()
 
@@ -925,15 +950,162 @@ class HospitalManagementSystem:
         finally:
             if cursor:
                 cursor.close()
-    def display_photo(self, photo_path):
+
+
+    def upload_photo(self, frame):
+            # Open file dialog to select image
+            file_path = filedialog.askopenfilename(
+                filetypes=[("Image files", "*.png *.jpg *.jpeg *.gif *.bmp")]
+            )
+            if file_path:
+                self.photo_path.set(file_path)  # Store file path
+                # Load and display image
+                image = Image.open(file_path)
+                image = image.resize((150, 150), Image.LANCZOS)  # Resize to 150x150
+                photo = ImageTk.PhotoImage(image)
+                self.photo_label.configure(image=photo)
+                self.photo_label.image = photo  # Keep reference to avoid garbage collection
+
+    def show_patient_profile(self, user_id):
         try:
-            image = Image.open(photo_path)
-            image = image.resize((150, 150), Image.LANCZOS)
-            photo = ImageTk.PhotoImage(image)
-            self.photo_label.configure(image=photo)
-            self.photo_label.image = photo
-        except Exception as e:
-            messagebox.showerror("Error", f"Failed to load photo: {e}")
+            cursor = self.db_connection.cursor()
+            cursor.execute(
+                """SELECT p.first_name, p.last_name, p.email, p.phone, p.address, 
+                        p.date_of_birth, p.gender, p.blood_type, p.photo_path, u.username
+                FROM patients p
+                JOIN users u ON p.user_id = u.user_id
+                WHERE p.user_id = %s""",
+                (user_id,)
+            )
+            patient = cursor.fetchone()
+            if not patient:
+                messagebox.showerror("Error", "Patient not found")
+                return
+
+            profile_window = tk.Toplevel(self.root)
+            profile_window.title("Patient Profile")
+            profile_window.geometry("600x600")
+            profile_window.resizable(False, False)
+            profile_window.configure(bg="#f0f8ff")
+
+            # Header
+            header_frame = tk.Frame(profile_window, bg="#3498db", height=60)
+            header_frame.pack(fill=tk.X)
+            tk.Label(
+                header_frame,
+                text=f"Profile: {patient[0]} {patient[1]}",
+                font=("Arial", 18, "bold"),
+                bg="#3498db",
+                fg="white"
+            ).pack(pady=15)
+
+            # Profile details
+            details_frame = tk.Frame(profile_window, bg="#f0f8ff", padx=20, pady=20)
+            details_frame.pack(fill=tk.BOTH, expand=True)
+
+            fields = ["First Name:", "Last Name:", "Email:", "Phone:", "Address:", 
+                      "Date of Birth:", "Gender:", "Blood Type:", "Username:"]
+            for i, (field, value) in enumerate(zip(fields, patient[:-1])):
+                tk.Label(
+                    details_frame,
+                    text=field,
+                    font=("Arial", 12, "bold"),
+                    bg="#f0f8ff"
+                ).grid(row=i, column=0, pady=5, sticky="e")
+                tk.Label(
+                    details_frame,
+                    text=value if value else "N/A",
+                    font=("Arial", 12),
+                    bg="#f0f8ff"
+                ).grid(row=i, column=1, pady=5, sticky="w")
+
+            # Photo display
+            if patient[8] and os.path.exists(patient[8]):
+                photo_frame = tk.Frame(details_frame, bg="#f0f8ff")
+                photo_frame.grid(row=len(fields), column=0, columnspan=2, pady=10)
+                image = Image.open(patient[8])
+                image = image.resize((150, 150), Image.LANCZOS)
+                photo = ImageTk.PhotoImage(image)
+                tk.Label(photo_frame, image=photo, bg="#f0f8ff").pack()
+                profile_window.photo = photo  # Keep reference
+
+            # Buttons
+            button_frame = tk.Frame(details_frame, bg="#f0f8ff")
+            button_frame.grid(row=len(fields)+1, column=0, columnspan=2, pady=20)
+            tk.Button(
+                button_frame,
+                text="Edit Profile",
+                font=("Arial", 12, "bold"),
+                bg="#3498db",
+                fg="white",
+                command=lambda: self.edit_patient_profile(user_id, profile_window)
+            ).pack(side=tk.LEFT, padx=10)
+            tk.Button(
+                button_frame,
+                text="Close",
+                font=("Arial", 12),
+                bg="#e74c3c",
+                fg="white",
+                command=profile_window.destroy
+            ).pack(side=tk.LEFT, padx=10)
+
+        except Error as e:
+            messagebox.showerror("Database Error", f"Failed to load profile: {e}")
+            self.logger.error(f"Database error in show_patient_profile: {e}")
+        finally:
+            if cursor:
+                cursor.close()
+
+    def edit_patient_profile(self, user_id, profile_window):
+            profile_window.destroy()
+            self.show_patient_registration(edit_mode=True, user_id=user_id)
+
+    def save_patient_profile(self, user_id, edit_window):
+            first_name = self.reg_first_name.get()
+            last_name = self.reg_last_name.get()
+            email = self.reg_email.get()
+            phone = self.reg_phone.get()
+            address = self.reg_address.get("1.0", tk.END).strip()
+            dob = self.reg_dob.get()
+            gender = self.reg_gender.get()
+            blood_type = self.reg_blood_type.get()
+            photo_path = self.photo_path.get() if self.photo_path.get() else None
+
+            # Validate inputs
+            if not all([first_name, last_name, email, phone, address, dob, gender]):
+                messagebox.showerror("Error", "All fields except blood type are required")
+                return
+            if not "@" in email or not "." in email:
+                messagebox.showerror("Error", "Invalid email format")
+                return
+
+            try:
+                datetime.strptime(dob, "%Y-%m-%d")
+            except ValueError:
+                messagebox.showerror("Error", "Invalid date format. Please use YYYY-MM-DD")
+                return
+
+            try:
+                cursor = self.db_connection.cursor()
+                cursor.execute(
+                    """UPDATE patients 
+                    SET first_name = %s, last_name = %s, email = %s, phone = %s, 
+                        address = %s, date_of_birth = %s, gender = %s, blood_type = %s, 
+                        photo_path = %s 
+                    WHERE user_id = %s""",
+                    (first_name, last_name, email, phone, address, dob, gender, blood_type, photo_path, user_id)
+                )
+                self.db_connection.commit()
+                messagebox.showinfo("Success", "Profile updated successfully!")
+                edit_window.destroy()
+                self.show_patient_profile(user_id)
+            except Error as e:
+                self.db_connection.rollback()
+                messagebox.showerror("Database Error", f"Failed to update profile: {e}")
+                self.logger.error(f"Database error in save_patient_profile: {e}")
+            finally:
+                if cursor:
+                     cursor.close()
             
 # Placeholder methods for dashboards (unchanged)
     def show_admin_dashboard(self, user_id):
@@ -3330,215 +3502,756 @@ class HospitalManagementSystem:
             self.current_page = new_page
             self.load_appointments_data()
 
+    # def show_add_appointment_form(self):
+    #     # Create the appointment window
+    #     self.add_appt_window = tk.Toplevel(self.root)
+    #     self.add_appt_window.title("Admin: Add New Appointment")
+    #     self.add_appt_window.geometry("650x650")
+    #     self.add_appt_window.resizable(False, False)
+        
+    #     # Configure window styling
+    #     bg_color = "#f0f8ff"
+    #     self.add_appt_window.configure(bg=bg_color)
+        
+    #     # Header frame
+    #     header_frame = tk.Frame(self.add_appt_window, bg="#3498db", height=70)
+    #     header_frame.pack(fill=tk.X)
+    #     tk.Label(
+    #         header_frame,
+    #         text="Create New Appointment",
+    #         font=("Arial", 18, "bold"),
+    #         bg="#3498db",
+    #         fg="white"
+    #     ).pack(pady=20)
+
+    #     # Main form container
+    #     form_frame = tk.Frame(self.add_appt_window, bg=bg_color, padx=25, pady=25)
+    #     form_frame.pack(fill=tk.BOTH, expand=True)
+
+    #     # Patient Selection
+    #     tk.Label(
+    #         form_frame,
+    #         text="Select Patient:",
+    #         font=("Arial", 12, "bold"),
+    #         bg=bg_color
+    #     ).grid(row=0, column=0, pady=10, sticky="e")
+
+    #     self.patient_var = tk.StringVar()
+    #     patient_cb = ttk.Combobox(
+    #         form_frame,
+    #         textvariable=self.patient_var,
+    #         font=("Arial", 12),
+    #         state="readonly",
+    #         width=35
+    #     )
+    #     patient_cb.grid(row=0, column=1, pady=10, padx=10, sticky="w")
+
+    #     # Doctor Selection
+    #     tk.Label(
+    #         form_frame,
+    #         text="Select Doctor:",
+    #         font=("Arial", 12, "bold"),
+    #         bg=bg_color
+    #     ).grid(row=1, column=0, pady=10, sticky="e")
+
+    #     self.doctor_var = tk.StringVar()
+    #     doctor_cb = ttk.Combobox(
+    #         form_frame,
+    #         textvariable=self.doctor_var,
+    #         font=("Arial", 12),
+    #         state="readonly",
+    #         width=35
+    #     )
+    #     doctor_cb.grid(row=1, column=1, pady=10, padx=10, sticky="w")
+
+    #     # Load patients and doctors
+    #     try:
+    #         cursor = self.db_connection.cursor()
+            
+    #         # Load patients in format: "John Doe (ID: 1) - Phone: 1234567890"
+    #         cursor.execute("""
+    #             SELECT p.patient_id, p.first_name, p.last_name, p.phone 
+    #             FROM patients p
+    #             JOIN users u ON p.user_id = u.user_id
+    #             ORDER BY p.last_name, p.first_name
+    #         """)
+    #         patients = [
+    #             f"{first_name} {last_name} (ID: {id}) - Phone: {phone}" 
+    #             for id, first_name, last_name, phone in cursor.fetchall()
+    #         ]
+    #         patient_cb['values'] = patients
+            
+    #         # Load doctors in format: "Dr. Smith (ID: 1) - Cardiology"
+    #         cursor.execute("""
+    #             SELECT doctor_id, first_name, last_name, specialization 
+    #             FROM doctors 
+    #             ORDER BY last_name, first_name
+    #         """)
+    #         doctors = [
+    #             f"Dr. {first_name} {last_name} (ID: {id}) - {specialization}" 
+    #             for id, first_name, last_name, specialization in cursor.fetchall()
+    #         ]
+    #         doctor_cb['values'] = doctors
+            
+    #         if not patients:
+    #             messagebox.showwarning("Warning", "No patients found in database")
+    #         if not doctors:
+    #             messagebox.showwarning("Warning", "No doctors found in database")
+                
+    #         if patients:
+    #             patient_cb.current(0)
+    #         if doctors:
+    #             doctor_cb.current(0)
+                
+    #     except Error as e:
+    #         messagebox.showerror("Database Error", f"Failed to load data: {str(e)}")
+    #         self.add_appt_window.destroy()
+    #         return
+
+    #     # Date Selection
+    #     tk.Label(
+    #         form_frame,
+    #         text="Appointment Date:",
+    #         font=("Arial", 12, "bold"),
+    #         bg=bg_color
+    #     ).grid(row=2, column=0, pady=10, sticky="e")
+
+    #     self.date_var = tk.StringVar()
+    #     date_entry = tk.Entry(
+    #         form_frame,
+    #         textvariable=self.date_var,
+    #         font=("Arial", 12),
+    #         width=35
+    #     )
+    #     date_entry.grid(row=2, column=1, pady=10, padx=10, sticky="w")
+    #     date_entry.insert(0, datetime.now().strftime("%Y-%m-%d"))  # Default to today
+
+    #     # Time Selection
+    #     tk.Label(
+    #         form_frame,
+    #         text="Appointment Time:",
+    #         font=("Arial", 12, "bold"),
+    #         bg=bg_color
+    #     ).grid(row=3, column=0, pady=10, sticky="e")
+
+    #     self.time_var = tk.StringVar()
+    #     time_cb = ttk.Combobox(
+    #         form_frame,
+    #         textvariable=self.time_var,
+    #         font=("Arial", 12),
+    #         values=[f"{h:02d}:{m:02d}" for h in range(8, 18) for m in [0, 30]],
+    #         state="readonly",
+    #         width=35
+    #     )
+    #     time_cb.grid(row=3, column=1, pady=10, padx=10, sticky="w")
+    #     time_cb.current(0)  # Default to first time slot
+
+    #     # Status Selection (Admin only)
+    #     tk.Label(
+    #         form_frame,
+    #         text="Appointment Status:",
+    #         font=("Arial", 12, "bold"),
+    #         bg=bg_color
+    #     ).grid(row=4, column=0, pady=10, sticky="e")
+
+    #     self.status_var = tk.StringVar(value="Scheduled")
+    #     status_cb = ttk.Combobox(
+    #         form_frame,
+    #         textvariable=self.status_var,
+    #         font=("Arial", 12),
+    #         values=["Scheduled", "Confirmed", "Completed", "Cancelled"],
+    #         state="readonly",
+    #         width=35
+    #     )
+    #     status_cb.grid(row=4, column=1, pady=10, padx=10, sticky="w")
+
+    #     # Reason for Visit
+    #     tk.Label(
+    #         form_frame,
+    #         text="Reason:",
+    #         font=("Arial", 12, "bold"),
+    #         bg=bg_color
+    #     ).grid(row=5, column=0, pady=10, sticky="ne")
+
+    #     self.reason_text = tk.Text(
+    #         form_frame,
+    #         font=("Arial", 12),
+    #         height=5,
+    #         width=35,
+    #         wrap=tk.WORD
+    #     )
+    #     self.reason_text.grid(row=5, column=1, pady=10, padx=10, sticky="w")
+
+    #     # Button Frame
+    #     button_frame = tk.Frame(form_frame, bg=bg_color)
+    #     button_frame.grid(row=6, column=0, columnspan=2, pady=20)
+
+    #     # Submit Button
+    #     submit_btn = tk.Button(
+    #         button_frame,
+    #         text="CREATE APPOINTMENT",
+    #         font=("Arial", 12, "bold"),
+    #         bg="#4CAF50",
+    #         fg="white",
+    #         width=25,
+    #         height=2,
+    #         command=self.admin_create_appointment
+    #     )
+    #     submit_btn.pack(side=tk.RIGHT, padx=10)
+
+    #     # Cancel Button
+    #     cancel_btn = tk.Button(
+    #         button_frame,
+    #         text="CANCEL",
+    #         font=("Arial", 12),
+    #         bg="#f44336",
+    #         fg="white",
+    #         width=15,
+    #         height=2,
+    #         command=self.add_appt_window.destroy
+    #     )
+    #     cancel_btn.pack(side=tk.LEFT, padx=10)
+    
     def show_add_appointment_form(self):
-        # Create the appointment window
-        self.add_appt_window = tk.Toplevel(self.root)
-        self.add_appt_window.title("Admin: Add New Appointment")
-        self.add_appt_window.geometry("650x650")
-        self.add_appt_window.resizable(False, False)
-        
-        # Configure window styling
-        bg_color = "#f0f8ff"
-        self.add_appt_window.configure(bg=bg_color)
-        
-        # Header frame
-        header_frame = tk.Frame(self.add_appt_window, bg="#3498db", height=70)
+        # Create a new top-level window
+        add_appt_window = tk.Toplevel(self.root)
+        add_appt_window.title("Add New Appointment")
+        add_appt_window.geometry("500x500")
+        add_appt_window.configure(bg="#f0f8ff")
+
+        # Header
+        header_frame = tk.Frame(add_appt_window, bg="#3498db", height=60)
         header_frame.pack(fill=tk.X)
         tk.Label(
             header_frame,
-            text="Create New Appointment",
+            text="Add New Appointment",
             font=("Arial", 18, "bold"),
             bg="#3498db",
             fg="white"
-        ).pack(pady=20)
+        ).pack(pady=15)
 
-        # Main form container
-        form_frame = tk.Frame(self.add_appt_window, bg=bg_color, padx=25, pady=25)
+        # Form frame
+        form_frame = tk.Frame(add_appt_window, bg="#f0f8ff", padx=20, pady=20)
         form_frame.pack(fill=tk.BOTH, expand=True)
 
-        # Patient Selection
-        tk.Label(
-            form_frame,
-            text="Select Patient:",
-            font=("Arial", 12, "bold"),
-            bg=bg_color
-        ).grid(row=0, column=0, pady=10, sticky="e")
-
+        # Patient selection
+        tk.Label(form_frame, text="Patient:", font=("Arial", 12), bg="#f0f8ff").grid(row=0, column=0, pady=10, sticky="e")
         self.patient_var = tk.StringVar()
-        patient_cb = ttk.Combobox(
+        cursor = self.db_connection.cursor()
+        cursor.execute("SELECT patient_id, CONCAT(first_name, ' ', last_name) FROM patients")
+        patients = [f"{name} (ID: {id})" for id, name in cursor.fetchall()]
+        self.patient_combobox = ttk.Combobox(
             form_frame,
             textvariable=self.patient_var,
+            values=patients,
             font=("Arial", 12),
-            state="readonly",
-            width=35
+            state="readonly"
         )
-        patient_cb.grid(row=0, column=1, pady=10, padx=10, sticky="w")
+        self.patient_combobox.grid(row=0, column=1, pady=10, sticky="w")
+        if patients:
+            self.patient_combobox.current(0)
 
-        # Doctor Selection
-        tk.Label(
-            form_frame,
-            text="Select Doctor:",
-            font=("Arial", 12, "bold"),
-            bg=bg_color
-        ).grid(row=1, column=0, pady=10, sticky="e")
-
+        # Doctor selection
+        tk.Label(form_frame, text="Doctor:", font=("Arial", 12), bg="#f0f8ff").grid(row=1, column=0, pady=10, sticky="e")
         self.doctor_var = tk.StringVar()
-        doctor_cb = ttk.Combobox(
+        cursor.execute("SELECT doctor_id, CONCAT(first_name, ' ', last_name) FROM doctors")
+        doctors = [f"{name} (ID: {id})" for id, name in cursor.fetchall()]
+        self.doctor_combobox = ttk.Combobox(
             form_frame,
             textvariable=self.doctor_var,
+            values=doctors,
             font=("Arial", 12),
-            state="readonly",
-            width=35
+            state="readonly"
         )
-        doctor_cb.grid(row=1, column=1, pady=10, padx=10, sticky="w")
+        self.doctor_combobox.grid(row=1, column=1, pady=10, sticky="w")
+        if doctors:
+            self.doctor_combobox.current(0)
 
-        # Load patients and doctors
-        try:
-            cursor = self.db_connection.cursor()
-            
-            # Load patients in format: "John Doe (ID: 1) - Phone: 1234567890"
-            cursor.execute("""
-                SELECT p.patient_id, p.first_name, p.last_name, p.phone 
-                FROM patients p
-                JOIN users u ON p.user_id = u.user_id
-                ORDER BY p.last_name, p.first_name
-            """)
-            patients = [
-                f"{first_name} {last_name} (ID: {id}) - Phone: {phone}" 
-                for id, first_name, last_name, phone in cursor.fetchall()
-            ]
-            patient_cb['values'] = patients
-            
-            # Load doctors in format: "Dr. Smith (ID: 1) - Cardiology"
-            cursor.execute("""
-                SELECT doctor_id, first_name, last_name, specialization 
-                FROM doctors 
-                ORDER BY last_name, first_name
-            """)
-            doctors = [
-                f"Dr. {first_name} {last_name} (ID: {id}) - {specialization}" 
-                for id, first_name, last_name, specialization in cursor.fetchall()
-            ]
-            doctor_cb['values'] = doctors
-            
-            if not patients:
-                messagebox.showwarning("Warning", "No patients found in database")
-            if not doctors:
-                messagebox.showwarning("Warning", "No doctors found in database")
-                
-            if patients:
-                patient_cb.current(0)
-            if doctors:
-                doctor_cb.current(0)
-                
-        except Error as e:
-            messagebox.showerror("Database Error", f"Failed to load data: {str(e)}")
-            self.add_appt_window.destroy()
-            return
-
-        # Date Selection
-        tk.Label(
-            form_frame,
-            text="Appointment Date:",
-            font=("Arial", 12, "bold"),
-            bg=bg_color
-        ).grid(row=2, column=0, pady=10, sticky="e")
-
+        # Date
+        tk.Label(form_frame, text="Date:", font=("Arial", 12), bg="#f0f8ff").grid(row=2, column=0, pady=10, sticky="e")
         self.date_var = tk.StringVar()
-        date_entry = tk.Entry(
+        date_entry = DateEntry(
             form_frame,
             textvariable=self.date_var,
             font=("Arial", 12),
-            width=35
+            date_pattern='yyyy-mm-dd',
+            width=12
         )
-        date_entry.grid(row=2, column=1, pady=10, padx=10, sticky="w")
-        date_entry.insert(0, datetime.now().strftime("%Y-%m-%d"))  # Default to today
+        date_entry.grid(row=2, column=1, pady=10, sticky="w")
 
-        # Time Selection
-        tk.Label(
-            form_frame,
-            text="Appointment Time:",
-            font=("Arial", 12, "bold"),
-            bg=bg_color
-        ).grid(row=3, column=0, pady=10, sticky="e")
-
+        # Time
+        tk.Label(form_frame, text="Time:", font=("Arial", 12), bg="#f0f8ff").grid(row=3, column=0, pady=10, sticky="e")
         self.time_var = tk.StringVar()
-        time_cb = ttk.Combobox(
+        time_combobox = ttk.Combobox(
             form_frame,
             textvariable=self.time_var,
-            font=("Arial", 12),
             values=[f"{h:02d}:{m:02d}" for h in range(8, 18) for m in [0, 30]],
-            state="readonly",
-            width=35
+            font=("Arial", 12),
+            state="readonly"
         )
-        time_cb.grid(row=3, column=1, pady=10, padx=10, sticky="w")
-        time_cb.current(0)  # Default to first time slot
+        time_combobox.grid(row=3, column=1, pady=10, sticky="w")
+        if time_combobox['values']:
+            time_combobox.current(0)
 
-        # Status Selection (Admin only)
-        tk.Label(
-            form_frame,
-            text="Appointment Status:",
-            font=("Arial", 12, "bold"),
-            bg=bg_color
-        ).grid(row=4, column=0, pady=10, sticky="e")
-
+        # Status
+        tk.Label(form_frame, text="Status:", font=("Arial", 12), bg="#f0f8ff").grid(row=4, column=0, pady=10, sticky="e")
         self.status_var = tk.StringVar(value="Scheduled")
-        status_cb = ttk.Combobox(
+        status_combobox = ttk.Combobox(
             form_frame,
             textvariable=self.status_var,
-            font=("Arial", 12),
             values=["Scheduled", "Confirmed", "Completed", "Cancelled"],
-            state="readonly",
-            width=35
-        )
-        status_cb.grid(row=4, column=1, pady=10, padx=10, sticky="w")
-
-        # Reason for Visit
-        tk.Label(
-            form_frame,
-            text="Reason:",
-            font=("Arial", 12, "bold"),
-            bg=bg_color
-        ).grid(row=5, column=0, pady=10, sticky="ne")
-
-        self.reason_text = tk.Text(
-            form_frame,
             font=("Arial", 12),
-            height=5,
-            width=35,
-            wrap=tk.WORD
+            state="readonly"
         )
-        self.reason_text.grid(row=5, column=1, pady=10, padx=10, sticky="w")
+        status_combobox.grid(row=4, column=1, pady=10, sticky="w")
 
-        # Button Frame
-        button_frame = tk.Frame(form_frame, bg=bg_color)
+        # Reason
+        tk.Label(form_frame, text="Reason:", font=("Arial", 12), bg="#f0f8ff").grid(row=5, column=0, pady=10, sticky="ne")
+        self.reason_text = tk.Text(form_frame, font=("Arial", 12), height=5, width=40, wrap=tk.WORD)
+        self.reason_text.grid(row=5, column=1, pady=10, sticky="w")
+
+        # Button frame
+        button_frame = tk.Frame(form_frame, bg="#f0f8ff")
         button_frame.grid(row=6, column=0, columnspan=2, pady=20)
 
-        # Submit Button
+        # Submit button
         submit_btn = tk.Button(
             button_frame,
-            text="CREATE APPOINTMENT",
+            text="Add Appointment",
+            font=("Arial", 12, "bold"),
+            bg="#3498db",
+            fg="white",
+            command=lambda: self.admin_create_appointment()
+        )
+        submit_btn.pack(side=tk.LEFT, padx=10)
+
+        # Cancel button
+        cancel_btn = tk.Button(
+            button_frame,
+            text="Cancel",
+            font=("Arial", 12),
+            bg="#e74c3c",
+            fg="white",
+            command=add_appt_window.destroy
+        )
+        cancel_btn.pack(side=tk.LEFT, padx=10)
+
+        # Ensure cursor is closed
+        cursor.close()
+    # def show_add_appointment_form(self, is_admin=False):
+    #     self.add_appt_window = tk.Toplevel(self.root)
+    #     self.add_appt_window.title("Admin: Add New Appointment" if is_admin else "Book Appointment")
+    #     self.add_appt_window.geometry("650x650")
+    #     self.add_appt_window.resizable(False, False)
+        
+    #     # Configure window styling
+    #     bg_color = "#f0f8ff"
+    #     self.add_appt_window.configure(bg=bg_color)
+        
+    #     # Header frame
+    #     header_frame = tk.Frame(self.add_appt_window, bg="#3498db", height=70)
+    #     header_frame.pack(fill=tk.X)
+    #     tk.Label(
+    #         header_frame,
+    #         text="Create New Appointment",
+    #         font=("Arial", 18, "bold"),
+    #         bg="#3498db",
+    #         fg="white"
+    #     ).pack(pady=20)
+
+    #     # Main form container
+    #     form_frame = tk.Frame(self.add_appt_window, bg=bg_color, padx=25, pady=25)
+    #     form_frame.pack(fill=tk.BOTH, expand=True)
+
+    #     # Patient Selection
+    #     tk.Label(
+    #         form_frame,
+    #         text="Select Patient:",
+    #         font=("Arial", 12, "bold"),
+    #         bg=bg_color
+    #     ).grid(row=0, column=0, pady=10, sticky="e")
+
+    #     self.patient_var = tk.StringVar()
+    #     patient_cb = ttk.Combobox(
+    #         form_frame,
+    #         textvariable=self.patient_var,
+    #         font=("Arial", 12),
+    #         state="readonly",
+    #         width=35
+    #     )
+    #     patient_cb.grid(row=0, column=1, pady=10, padx=10, sticky="w")
+
+    #     # Doctor Selection
+    #     tk.Label(
+    #         form_frame,
+    #         text="Select Doctor:",
+    #         font=("Arial", 12, "bold"),
+    #         bg=bg_color
+    #     ).grid(row=1, column=0, pady=10, sticky="e")
+
+    #     self.doctor_var = tk.StringVar()
+    #     doctor_cb = ttk.Combobox(
+    #         form_frame,
+    #         textvariable=self.doctor_var,
+    #         font=("Arial", 12),
+    #         state="readonly",
+    #         width=35
+    #     )
+    #     doctor_cb.grid(row=1, column=1, pady=10, padx=10, sticky="w")
+
+    #     # Load patients and doctors
+    #     try:
+    #         cursor = self.db_connection.cursor()
+            
+    #         if is_admin:
+    #             # Load all patients for admin
+    #             cursor.execute("""
+    #                 SELECT p.patient_id, p.first_name, p.last_name, p.phone 
+    #                 FROM patients p
+    #                 JOIN users u ON p.user_id = u.user_id
+    #                 ORDER BY p.last_name, p.first_name
+    #             """)
+    #             patients = [
+    #                 f"{first_name} {last_name} (ID: {id}) - Phone: {phone}" 
+    #                 for id, first_name, last_name, phone in cursor.fetchall()
+    #             ]
+    #         else:
+    #             # Load only current patient for patient view
+    #             cursor.execute("""
+    #                 SELECT p.patient_id, p.first_name, p.last_name, p.phone 
+    #                 FROM patients p
+    #                 WHERE p.user_id = %s
+    #             """, (self.current_user_id,))
+    #             patient_data = cursor.fetchone()
+    #             if patient_data:
+    #                 patients = [f"{patient_data[1]} {patient_data[2]} (ID: {patient_data[0]}) - Phone: {patient_data[3]}"]
+    #             else:
+    #                 patients = []
+            
+    #         patient_cb['values'] = patients
+            
+    #         # Load doctors
+    #         cursor.execute("""
+    #             SELECT doctor_id, first_name, last_name, specialization 
+    #             FROM doctors 
+    #             ORDER BY last_name, first_name
+    #         """)
+    #         doctors = [
+    #             f"Dr. {first_name} {last_name} (ID: {id}) - {specialization}" 
+    #             for id, first_name, last_name, specialization in cursor.fetchall()
+    #         ]
+    #         doctor_cb['values'] = doctors
+            
+    #         if not patients:
+    #             messagebox.showwarning("Warning", "No patients found")
+    #         if not doctors:
+    #             messagebox.showwarning("Warning", "No doctors found")
+                
+    #         if patients:
+    #             patient_cb.current(0)
+    #         if doctors:
+    #             doctor_cb.current(0)
+                
+    #     except Error as e:
+    #         messagebox.showerror("Database Error", f"Failed to load data: {str(e)}")
+    #         self.add_appt_window.destroy()
+    #         return
+
+    #     # Date Selection
+    #     tk.Label(
+    #         form_frame,
+    #         text="Appointment Date:",
+    #         font=("Arial", 12, "bold"),
+    #         bg=bg_color
+    #     ).grid(row=2, column=0, pady=10, sticky="e")
+
+    #     self.date_var = DateEntry(
+    #         form_frame,
+    #         font=("Arial", 12),
+    #         date_pattern='yyyy-mm-dd',
+    #         width=12
+    #     )
+    #     self.date_var.grid(row=2, column=1, pady=10, padx=10, sticky="w")
+    #     self.date_var.set_date(datetime.now())  # Default to today
+
+    #     # Time Selection
+    #     tk.Label(
+    #         form_frame,
+    #         text="Appointment Time:",
+    #         font=("Arial", 12, "bold"),
+    #         bg=bg_color
+    #     ).grid(row=3, column=0, pady=10, sticky="e")
+
+    #     self.time_var = ttk.Combobox(
+    #         form_frame,
+    #         textvariable=self.time_var,
+    #         font=("Arial", 12),
+    #         values=[f"{h:02d}:{m:02d}" for h in range(8, 18) for m in [0, 30]],
+    #         state="readonly",
+    #         width=35
+    #     )
+    #     self.time_var.grid(row=3, column=1, pady=10, padx=10, sticky="w")
+    #     self.time_var.current(0)  # Default to first time slot
+
+    #     # Status Selection (only for admin)
+    #     if is_admin:
+    #         tk.Label(
+    #             form_frame,
+    #             text="Appointment Status:",
+    #             font=("Arial", 12, "bold"),
+    #             bg=bg_color
+    #         ).grid(row=4, column=0, pady=10, sticky="e")
+
+    #         self.status_var = tk.StringVar(value="Scheduled")
+    #         status_cb = ttk.Combobox(
+    #             form_frame,
+    #             textvariable=self.status_var,
+    #             font=("Arial", 12),
+    #             values=["Scheduled", "Confirmed", "Completed", "Cancelled"],
+    #             state="readonly",
+    #             width=35
+    #         )
+    #         status_cb.grid(row=4, column=1, pady=10, padx=10, sticky="w")
+
+    #     # Reason for Visit
+    #     tk.Label(
+    #         form_frame,
+    #         text="Reason:",
+    #         font=("Arial", 12, "bold"),
+    #         bg=bg_color
+    #     ).grid(row=5 if is_admin else 4, column=0, pady=10, sticky="ne")
+
+    #     self.reason_text = tk.Text(
+    #         form_frame,
+    #         font=("Arial", 12),
+    #         height=5,
+    #         width=35,
+    #         wrap=tk.WORD
+    #     )
+    #     self.reason_text.grid(row=5 if is_admin else 4, column=1, pady=10, padx=10, sticky="w")
+
+    #     # Button Frame
+    #     button_frame = tk.Frame(form_frame, bg=bg_color)
+    #     button_frame.grid(row=6 if is_admin else 5, column=0, columnspan=2, pady=20)
+
+    #     # Submit Button
+    #     submit_btn = tk.Button(
+    #         button_frame,
+    #         text="CREATE APPOINTMENT",
+    #         font=("Arial", 12, "bold"),
+    #         bg="#4CAF50",
+    #         fg="white",
+    #         width=25,
+    #         height=2,
+    #         command=lambda: self.create_appointment(is_admin)
+    #     )
+    #     submit_btn.pack(side=tk.RIGHT, padx=10)
+
+    #     # Cancel Button
+    #     cancel_btn = tk.Button(
+    #         button_frame,
+    #         text="CANCEL",
+    #         font=("Arial", 12),
+    #         bg="#f44336",
+    #         fg="white",
+    #         width=15,
+    #         height=2,
+    #         command=self.add_appt_window.destroy
+    #     )
+    #     cancel_btn.pack(side=tk.LEFT, padx=10)
+        
+    def create_appointment(self, is_admin=False):
+        try:
+            # Get values from form
+            patient_str = self.patient_var.get()
+            doctor_str = self.doctor_var.get()
+            date = self.date_var.get_date().strftime("%Y-%m-%d")
+            time = self.time_var.get()
+            reason = self.reason_text.get("1.0", tk.END).strip()
+            status = self.status_var.get() if is_admin else "Scheduled"
+
+            # Validate required fields
+            if not all([patient_str, doctor_str, date, time]):
+                messagebox.showerror("Error", "Please fill all required fields")
+                return
+
+            # Extract IDs from strings
+            try:
+                patient_id = int(patient_str.split("(ID: ")[1].split(")")[0])
+                doctor_id = int(doctor_str.split("(ID: ")[1].split(")")[0])
+            except (IndexError, ValueError):
+                messagebox.showerror("Error", "Invalid patient or doctor selection")
+                return
+
+            # Validate date and time
+            try:
+                datetime.strptime(date, "%Y-%m-%d")
+                datetime.strptime(time, "%H:%M")
+            except ValueError:
+                messagebox.showerror("Error", "Invalid date or time format")
+                return
+
+            # Insert into database
+            cursor = self.db_connection.cursor()
+            cursor.execute(
+                """INSERT INTO appointments 
+                (patient_id, doctor_id, appointment_date, appointment_time, status, reason) 
+                VALUES (%s, %s, %s, %s, %s, %s)""",
+                (patient_id, doctor_id, date, time, status, reason if reason else None)
+            )
+            
+            # Get the new appointment ID
+            appointment_id = cursor.lastrowid
+            
+            # Get patient and doctor names for notification
+            cursor.execute(
+                "SELECT CONCAT(first_name, ' ', last_name) FROM patients WHERE patient_id = %s",
+                (patient_id,)
+            )
+            patient_name = cursor.fetchone()[0]
+            
+            cursor.execute(
+                "SELECT CONCAT(first_name, ' ', last_name) FROM doctors WHERE doctor_id = %s",
+                (doctor_id,)
+            )
+            doctor_name = cursor.fetchone()[0]
+            
+            # Get patient email
+            cursor.execute(
+                "SELECT email FROM patients WHERE patient_id = %s",
+                (patient_id,)
+            )
+            patient_email = cursor.fetchone()[0]
+
+            self.db_connection.commit()
+            
+            # Send confirmation email
+            subject = "Appointment Confirmation"
+            body = (
+                f"Dear {patient_name},\n\n"
+                f"Your appointment has been successfully booked.\n"
+                f"Appointment ID: {appointment_id}\n"
+                f"Date: {date}\n"
+                f"Time: {time}\n"
+                f"Doctor: {doctor_name}\n"
+                f"Status: {status}\n"
+                f"Reason: {reason if reason else 'Not specified'}\n\n"
+                f"Thank you for choosing our hospital."
+            )
+            self.send_email_notification(patient_email, subject, body)
+            
+            messagebox.showinfo("Success", "Appointment booked successfully!")
+            self.add_appt_window.destroy()
+            
+            # Refresh appointments view
+            if is_admin:
+                self.load_appointments_data()
+            else:
+                self.load_patient_appointments(self.current_user_id)
+
+        except Error as e:
+            self.db_connection.rollback()
+            messagebox.showerror("Database Error", f"Failed to create appointment: {e}")
+        finally:
+            cursor.close()
+        
+    def submit_appointment(self, user_id, window):
+        doctor_str = self.doctor_var.get()
+        date = self.date_var.get_date()
+        time = self.time_var.get()
+        reason = self.reason_text.get("1.0", tk.END).strip()
+
+        if not all([doctor_str, date, time]):
+            messagebox.showerror("Error", "All fields except reason are required")
+            return
+
+        try:
+            doctor_id = int(doctor_str.split("(ID: ")[1].replace(")", ""))
+            cursor = self.db_connection.cursor()
+            cursor.execute("SELECT patient_id, email, CONCAT(first_name, ' ', last_name) FROM patients WHERE user_id = %s", (user_id,))
+            patient_data = cursor.fetchone()
+            if not patient_data:
+                messagebox.showerror("Error", "Patient not found")
+                return
+            patient_id, patient_email, patient_name = patient_data
+
+            cursor.execute("SELECT CONCAT(first_name, ' ', last_name) FROM doctors WHERE doctor_id = %s", (doctor_id,))
+            doctor_name = cursor.fetchone()[0]
+
+            cursor.execute(
+                """INSERT INTO appointments 
+                (patient_id, doctor_id, appointment_date, appointment_time, status, reason) 
+                VALUES (%s, %s, %s, %s, %s, %s)""",
+                (patient_id, doctor_id, date, time, "Scheduled", reason if reason else None)
+            )
+            appointment_id = cursor.lastrowid
+            self.db_connection.commit()
+
+            subject = "Appointment Confirmation - Grow Up Hospital"
+            body = (
+                f"Dear {patient_name},\n\n"
+                f"Your appointment has been successfully booked.\n"
+                f"Appointment ID: {appointment_id}\n"
+                f"Date: {date}\n"
+                f"Time: {time}\n"
+                f"Doctor: {doctor_name}\n"
+                f"Status: Scheduled\n"
+                f"Reason: {reason if reason else 'Not specified'}\n\n"
+                f"Thank you for choosing Grow Up Hospital."
+            )
+            self.send_email_notification(patient_email, subject, body)
+            messagebox.showinfo("Success", "Appointment booked successfully!")
+            window.destroy()
+            if hasattr(self, 'load_patient_appointments'):
+                self.load_patient_appointments(user_id)
+
+        except Error as e:
+            self.db_connection.rollback()
+            messagebox.showerror("Database Error", f"Failed to book appointment: {e}")
+        finally:
+            cursor.close()
+        
+    def add_appointment(self, user_id):
+        add_window = tk.Toplevel(self.root)
+        add_window.title("Book Appointment")
+        add_window.geometry("500x500")
+        add_window.configure(bg="#f0f8ff")
+
+        tk.Label(add_window, text="Book Appointment", font=("Arial", 18, "bold"), bg="#f0f8ff").pack(pady=10)
+
+        tk.Label(add_window, text="Doctor:", font=("Arial", 12), bg="#f0f8ff").pack(pady=5)
+        cursor = self.db_connection.cursor()
+        cursor.execute("SELECT doctor_id, CONCAT(first_name, ' ', last_name) FROM doctors")
+        doctors = [f"{name} (ID: {id})" for id, name in cursor.fetchall()]
+        self.doctor_var = tk.StringVar()
+        doctor_combobox = ttk.Combobox(add_window, textvariable=self.doctor_var, values=doctors, state="readonly")
+        doctor_combobox.pack(pady=5)
+        if doctors:
+            doctor_combobox.current(0)
+
+        tk.Label(add_window, text="Date:", font=("Arial", 12), bg="#f0f8ff").pack(pady=5)
+        self.date_var = DateEntry(add_window, date_pattern='yyyy-mm-dd', width=12)
+        self.date_var.pack(pady=5)
+
+        tk.Label(add_window, text="Time:", font=("Arial", 12), bg="#f0f8ff").pack(pady=5)
+        self.time_var = ttk.Combobox(add_window, values=[f"{h:02d}:{m:02d}" for h in range(8, 18) for m in [0, 30]], state="readonly")
+        self.time_var.pack(pady=5)
+        self.time_var.current(0)
+
+        tk.Label(add_window, text="Reason:", font=("Arial", 12), bg="#f0f8ff").pack(pady=5)
+        self.reason_text = tk.Text(add_window, height=5, width=40)
+        self.reason_text.pack(pady=5)
+
+        submit_btn = tk.Button(
+            add_window,
+            text="Book Appointment",
             font=("Arial", 12, "bold"),
             bg="#4CAF50",
             fg="white",
-            width=25,
-            height=2,
-            command=self.admin_create_appointment
+            command=lambda: self.submit_appointment(user_id, add_window)
         )
-        submit_btn.pack(side=tk.RIGHT, padx=10)
+        submit_btn.pack(pady=20)
 
-        # Cancel Button
-        cancel_btn = tk.Button(
-            button_frame,
-            text="CANCEL",
-            font=("Arial", 12),
-            bg="#f44336",
-            fg="white",
-            width=15,
-            height=2,
-            command=self.add_appt_window.destroy
-        )
-        cancel_btn.pack(side=tk.LEFT, padx=10)
         
     def edit_appointment(self):
         selected_item = self.appointments_tree.selection()
@@ -5626,7 +6339,7 @@ class HospitalManagementSystem:
         buttons = [
             ("Dashboard", lambda: self.show_patient_welcome(user_id)),
             ("My Profile", lambda: self.show_patient_profile(user_id)),
-            ("Book Appointment", lambda: self.show_book_appointment(user_id)),
+            ("Book Appointment", lambda: self.show_add_appointment_form(is_admin=False)),
             ("View Appointments", lambda: self.show_patient_appointments(user_id)),
             ("Medical Records", lambda: self.show_medical_records(user_id)),
             ("Billing/Payments", lambda: self.show_patient_billing(user_id)),
@@ -6135,125 +6848,105 @@ class HospitalManagementSystem:
             messagebox.showerror("Database Error", f"Failed to cancel appointment: {e}")
 
     def show_medical_records(self, user_id):
-        # Clear content frame
-        for widget in self.patient_content_frame.winfo_children():
-            widget.destroy()
-
-        # Title
-        tk.Label(
-            self.patient_content_frame,
-            text="My Medical Records",
-            font=("Arial", 20, "bold"),
-            bg="#f0f8ff",
-        ).pack(pady=20)
-
-        # Create scrollable frame
-        canvas = tk.Canvas(self.patient_content_frame, bg="#f0f8ff")
-        scrollbar = ttk.Scrollbar(self.patient_content_frame, orient="vertical", command=canvas.yview)
-        scrollable_frame = tk.Frame(canvas, bg="#f0f8ff")
-
-        # Configure canvas scrolling
-        scrollable_frame.bind(
-            "<Configure>",
-            lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
-        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
-        canvas.configure(yscrollcommand=scrollbar.set)
-
-        # Pack widgets
-        scrollbar.pack(side="right", fill="y")
-        canvas.pack(side="left", fill="both", expand=True)
-
-        # Load medical records
         try:
             cursor = self.db_connection.cursor()
             cursor.execute(
-                """SELECT p.patient_id, p.first_name, p.last_name 
-                FROM patients p WHERE p.user_id = %s""",
+                """SELECT mr.record_id, mr.date, mr.diagnosis, mr.treatment, mr.notes
+                FROM medical_records mr
+                JOIN patients p ON mr.patient_id = p.patient_id
+                WHERE p.user_id = %s
+                ORDER BY mr.date DESC""",
                 (user_id,)
             )
-            patient_data = cursor.fetchone()
+            records = cursor.fetchall()
             
-            if patient_data:
-                patient_id = patient_data[0]
-                
-                # Get medical records
-                cursor.execute(
-                    """SELECT record_id, record_date, diagnosis, treatment, notes 
-                    FROM medical_records 
-                    WHERE patient_id = %s
-                    ORDER BY record_date DESC""",
-                    (patient_id,)
+            # Create new window
+            records_window = tk.Toplevel(self.root)
+            records_window.title("Medical Records")
+            records_window.geometry("800x600")
+            records_window.resizable(False, False)
+            records_window.configure(bg="#f0f8ff")
+
+            # Header
+            header_frame = tk.Frame(records_window, bg="#3498db", height=60)
+            header_frame.pack(fill=tk.X)
+            tk.Label(
+                header_frame,
+                text="Medical Records",
+                font=("Arial", 18, "bold"),
+                bg="#3498db",
+                fg="white"
+            ).pack(pady=15)
+
+            # Records display
+            records_frame = tk.Frame(records_window, bg="#f0f8ff", padx=20, pady=20)
+            records_frame.pack(fill=tk.BOTH, expand=True)
+
+            if not records:
+                tk.Label(
+                    records_frame,
+                    text="No medical records found",
+                    font=("Arial", 12),
+                    bg="#f0f8ff"
+                ).pack(pady=20)
+            else:
+                # Create scrollable canvas for records
+                canvas = tk.Canvas(records_frame, bg="#f0f8ff")
+                scrollbar = ttk.Scrollbar(records_frame, orient="vertical", command=canvas.yview)
+                scrollable_frame = tk.Frame(canvas, bg="#f0f8ff")
+
+                scrollable_frame.bind(
+                    "<Configure>",
+                    lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
                 )
-                records = cursor.fetchall()
+                canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+                canvas.configure(yscrollcommand=scrollbar.set)
+                canvas.pack(side="left", fill="both", expand=True)
+                scrollbar.pack(side="right", fill="y")
 
-                if records:
-                    for record in records:
-                        record_frame = tk.Frame(
-                            scrollable_frame,
-                            bg="white",
-                            bd=1,
-                            relief="solid",
-                            padx=10,
-                            pady=10
-                        )
-                        record_frame.pack(fill=tk.X, padx=10, pady=5)
-
-                        # Record header
-                        tk.Label(
-                            record_frame,
-                            text=f"Record from {record[1].strftime('%Y-%m-%d')}",
-                            font=("Arial", 12, "bold"),
-                            bg="white"
-                        ).pack(anchor="w")
-
-                        # Diagnosis
-                        tk.Label(
-                            record_frame,
-                            text=f"Diagnosis: {record[2]}",
-                            font=("Arial", 11),
-                            bg="white"
-                        ).pack(anchor="w")
-
-                        # Treatment
-                        tk.Label(
-                            record_frame,
-                            text=f"Treatment: {record[3]}",
-                            font=("Arial", 11),
-                            bg="white"
-                        ).pack(anchor="w")
-
-                        # Notes
-                        if record[4]:
-                            tk.Label(
-                                record_frame,
-                                text=f"Notes: {record[4]}",
-                                font=("Arial", 11),
-                                bg="white"
-                            ).pack(anchor="w")
-
-                else:
+                # Display records
+                fields = ["Record ID:", "Date:", "Diagnosis:", "Treatment:", "Notes:"]
+                for i, record in enumerate(records):
                     tk.Label(
                         scrollable_frame,
-                        text="No medical records found",
-                        font=("Arial", 14),
-                        bg="#f0f8ff"
-                    ).pack(pady=20)
+                        text=f"Record {i+1}",
+                        font=("Arial", 14, "bold"),
+                        bg="#f0f8ff",
+                        fg="#2c3e50"
+                    ).grid(row=i*6, column=0, columnspan=2, pady=(10, 5), sticky="w")
+                    for j, (field, value) in enumerate(zip(fields, record)):
+                        tk.Label(
+                            scrollable_frame,
+                            text=field,
+                            font=("Arial", 12, "bold"),
+                            bg="#f0f8ff"
+                        ).grid(row=i*6+j+1, column=0, pady=2, padx=10, sticky="e")
+                        tk.Label(
+                            scrollable_frame,
+                            text=value if value else "N/A",
+                            font=("Arial", 12),
+                            bg="#f0f8ff"
+                        ).grid(row=i*6+j+1, column=1, pady=2, padx=10, sticky="w")
+
+            # Close button
+            button_frame = tk.Frame(records_frame, bg="#f0f8ff")
+            button_frame.pack(pady=20)
+            tk.Button(
+                button_frame,
+                text="Close",
+                font=("Arial", 12),
+                bg="#e74c3c",
+                fg="white",
+                command=records_window.destroy
+            ).pack()
 
         except Error as e:
             messagebox.showerror("Database Error", f"Failed to load medical records: {e}")
+            self.logger.error(f"Database error in show_medical_records: {e}")
+        finally:
+            if cursor:
+                cursor.close()
 
-        # Go Back button
-        button_frame = tk.Frame(scrollable_frame, bg="#f0f8ff")
-        button_frame.pack(pady=20)
-
-        tk.Button(
-            button_frame,
-            text="Go Back",
-            font=("Arial", 12),
-            bg="#2196F3",
-            fg="white",
-            command=lambda: self.show_patient_welcome(user_id),
-        ).pack()
 
     def show_patient_billing(self, user_id):
         # Clear content frame
@@ -8935,28 +9628,50 @@ class HospitalManagementSystem:
         status = self.edit_appt_status.get()
         reason = self.edit_appt_reason.get("1.0", "end-1c").strip()
 
-        # Validate inputs
         if not all([date, time, doctor, status]):
             messagebox.showerror("Error", "All fields except reason are required")
             return
 
         try:
-            # Extract doctor ID
             doctor_id = doctor.split("(ID: ")[1].replace(")", "")
-
             cursor = self.db_connection.cursor()
             cursor.execute(
+                """SELECT CONCAT(p.first_name, ' ', p.last_name), p.email, 
+                        CONCAT(d.first_name, ' ', d.last_name), a.patient_id
+                FROM appointments a
+                JOIN patients p ON a.patient_id = p.patient_id
+                JOIN doctors d ON a.doctor_id = d.doctor_id
+                WHERE a.appointment_id = %s""",
+                (appointment_id,)
+            )
+            data = cursor.fetchone()
+            if not data:
+                messagebox.showerror("Error", "Patient or doctor not found")
+                return
+            patient_name, patient_email, doctor_name, patient_id = data
+
+            cursor.execute(
                 """UPDATE appointments 
-                SET appointment_date = %s, 
-                    appointment_time = %s,
-                    doctor_id = %s,
-                    status = %s,
-                    reason = %s
+                SET appointment_date = %s, appointment_time = %s, doctor_id = %s, 
+                    status = %s, reason = %s
                 WHERE appointment_id = %s""",
                 (date, time, doctor_id, status, reason if reason else None, appointment_id)
             )
             self.db_connection.commit()
 
+            subject = "Appointment Updated - Grow Up Hospital"
+            body = (
+                f"Dear {patient_name},\n\n"
+                f"Your appointment has been updated.\n"
+                f"Appointment ID: {appointment_id}\n"
+                f"Date: {date}\n"
+                f"Time: {time}\n"
+                f"Doctor: {doctor_name}\n"
+                f"Status: {status}\n"
+                f"Reason: {reason if reason else 'Not specified'}\n\n"
+                f"Thank you for choosing Grow Up Hospital."
+            )
+            self.send_email_notification(patient_email, subject, body)
             messagebox.showinfo("Success", "Appointment updated successfully!")
             window.destroy()
             self.load_staff_appointments(self.current_user_id)
@@ -8964,7 +9679,10 @@ class HospitalManagementSystem:
         except Error as e:
             self.db_connection.rollback()
             messagebox.showerror("Database Error", f"Failed to update appointment: {e}")
-
+        finally:
+            if cursor:
+                cursor.close()
+                
     def update_staff_appointment_status(self, user_id, status):
         selected_item = self.staff_appointments_tree.selection()
         if not selected_item:
@@ -8982,17 +9700,47 @@ class HospitalManagementSystem:
         try:
             cursor = self.db_connection.cursor()
             cursor.execute(
+                """SELECT CONCAT(p.first_name, ' ', p.last_name), p.email, 
+                        CONCAT(d.first_name, ' ', d.last_name), a.appointment_date, 
+                        a.appointment_time, a.reason
+                FROM appointments a
+                JOIN patients p ON a.patient_id = p.patient_id
+                JOIN doctors d ON a.doctor_id = d.doctor_id
+                WHERE a.appointment_id = %s""",
+                (appointment_id,)
+            )
+            data = cursor.fetchone()
+            if not data:
+                messagebox.showerror("Error", "Appointment not found")
+                return
+            patient_name, patient_email, doctor_name, appt_date, appt_time, reason = data
+
+            cursor.execute(
                 "UPDATE appointments SET status = %s WHERE appointment_id = %s",
                 (status, appointment_id)
             )
             self.db_connection.commit()
 
+            subject = f"Appointment {status} - Grow Up Hospital"
+            body = (
+                f"Dear {patient_name},\n\n"
+                f"Your appointment (ID: {appointment_id}) has been marked as {status}.\n"
+                f"Date: {appt_date}\n"
+                f"Time: {appt_time}\n"
+                f"Doctor: {doctor_name}\n"
+                f"Reason: {reason if reason else 'Not specified'}\n\n"
+                f"Thank you for choosing Grow Up Hospital."
+            )
+            self.send_email_notification(patient_email, subject, body)
             messagebox.showinfo("Success", f"Appointment marked as {status}")
             self.load_staff_appointments(user_id)
 
         except Error as e:
             self.db_connection.rollback()
             messagebox.showerror("Database Error", f"Failed to update appointment: {e}")
+        finally:
+            if cursor:
+                cursor.close()
 
     def delete_staff_appointment(self):
         selected_item = self.staff_appointments_tree.selection()
@@ -9024,60 +9772,89 @@ class HospitalManagementSystem:
             messagebox.showerror("Database Error", f"Failed to delete appointment: {e}")
             
     def admin_create_appointment(self):
-        # Get all form data
-        patient_str = self.patient_var.get()
-        doctor_str = self.doctor_var.get()
-        date = self.date_var.get()
-        time = self.time_var.get()
-        status = self.status_var.get()
-        reason = self.reason_text.get("1.0", tk.END).strip()
+        # Ensure all variables are accessible
+        patient_str = getattr(self, 'patient_var', None).get() if hasattr(self, 'patient_var') else None
+        doctor_str = getattr(self, 'doctor_var', None).get() if hasattr(self, 'doctor_var') else None
+        date = getattr(self, 'date_var', None).get() if hasattr(self, 'date_var') else None
+        time = getattr(self, 'time_var', None).get() if hasattr(self, 'time_var') else None
+        status = getattr(self, 'status_var', None).get() if hasattr(self, 'status_var') else None
+        reason = getattr(self, 'reason_text', None).get("1.0", tk.END).strip() if hasattr(self, 'reason_text') else None
 
-        # Validate inputs
         if not all([patient_str, doctor_str, date, time, status]):
             messagebox.showerror("Error", "All fields are required")
             return
 
         try:
-            # Extract patient ID from the string (format: "John Doe (ID: 1) - Phone: 1234567890")
             patient_id = int(patient_str.split("(ID: ")[1].split(")")[0])
-            
-            # Extract doctor ID from the string (format: "Dr. Smith (ID: 1) - Cardiology")
             doctor_id = int(doctor_str.split("(ID: ")[1].split(")")[0])
-
-            # Validate date format
             datetime.strptime(date, "%Y-%m-%d")
 
             cursor = None
             try:
                 if self.db_connection.in_transaction:
                     self.db_connection.rollback()
-                
                 self.db_connection.start_transaction()
                 cursor = self.db_connection.cursor()
-                
-                # Insert appointment
+
                 cursor.execute(
                     """INSERT INTO appointments 
                     (patient_id, doctor_id, appointment_date, appointment_time, status, reason) 
                     VALUES (%s, %s, %s, %s, %s, %s)""",
-                    (patient_id, doctor_id, date, time, status, reason),
+                    (patient_id, doctor_id, date, time, status, reason if reason else None)
                 )
+                appointment_id = cursor.lastrowid
+
+                # Verify and fetch patient and doctor details
+                cursor.execute(
+                    """SELECT CONCAT(p.first_name, ' ', p.last_name), p.email, 
+                            CONCAT(d.first_name, ' ', d.last_name)
+                    FROM patients p
+                    JOIN doctors d ON d.doctor_id = %s
+                    WHERE p.patient_id = %s""",
+                    (doctor_id, patient_id)
+                )
+                data = cursor.fetchone()
+                if not data:
+                    raise ValueError("Patient or doctor not found in database")
+                patient_name, patient_email, doctor_name = data
 
                 self.db_connection.commit()
+
+                # Send email notification
+                subject = "New Appointment Scheduled - Grow Up Hospital"
+                body = (
+                    f"Dear {patient_name},\n\n"
+                    f"A new appointment has been scheduled for you.\n"
+                    f"Appointment ID: {appointment_id}\n"
+                    f"Date: {date}\n"
+                    f"Time: {time}\n"
+                    f"Doctor: {doctor_name}\n"
+                    f"Status: {status}\n"
+                    f"Reason: {reason if reason else 'Not specified'}\n\n"
+                    f"Thank you for choosing Grow Up Hospital."
+                )
+                self.send_email_notification(patient_email, subject, body)
                 messagebox.showinfo("Success", "Appointment created successfully!")
-                self.add_appt_window.destroy()
-                self.load_appointments_data()
+
+                # Close the add appointment window (assuming it's the topmost window)
+                if hasattr(self, 'add_appt_window') and self.add_appt_window.winfo_exists():
+                    self.add_appt_window.destroy()
+                self.load_staff_appointments(self.current_user_id)
 
             except Error as e:
                 self.db_connection.rollback()
+                self.logger.error(f"Database error in admin_create_appointment: {e}")
                 messagebox.showerror("Database Error", f"Failed to create appointment: {e}")
             finally:
                 if cursor:
                     cursor.close()
 
         except ValueError as e:
-            messagebox.showerror("Error", f"Invalid input: {e}")
-            
+            self.logger.error(f"Value error in admin_create_appointment: {e}")
+            messagebox.showerror("Error", f"Invalid input or {str(e)}")
+        except Exception as e:
+            self.logger.error(f"Unexpected error in admin_create_appointment: {e}")
+            messagebox.showerror("Error", f"An unexpected error occurred: {e}")
 
     def show_manage_patients(self):
         # Clear content frame
