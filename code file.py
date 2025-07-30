@@ -9707,6 +9707,8 @@ class HospitalManagementSystem:
                 f"Reason: {reason if reason else 'Not specified'}\n\n"
                 f"Thank you for choosing Grow Up Hospital."
             )
+            print("New Details are as following")  # Moved outside for debugging
+            
             self.send_email_notification(patient_email, subject, body)
             messagebox.showinfo("Success", "Appointment updated successfully!")
             window.destroy()
@@ -9767,7 +9769,7 @@ class HospitalManagementSystem:
                 f"Reason: {reason if reason else 'Not specified'}\n\n"
                 f"Thank you for choosing Grow Up Hospital."
             )
-            self.send_email_notification(patient_email, subject, body)
+            self.send_email_notification_async(patient_email, subject, body)
             messagebox.showinfo("Success", f"Appointment marked as {status}")
             self.load_staff_appointments(user_id)
 
@@ -9777,7 +9779,7 @@ class HospitalManagementSystem:
         finally:
             if cursor:
                 cursor.close()
-
+                
     def delete_staff_appointment(self):
         selected_item = self.staff_appointments_tree.selection()
         if not selected_item:
@@ -9795,93 +9797,225 @@ class HospitalManagementSystem:
         try:
             cursor = self.db_connection.cursor()
             cursor.execute(
+                """SELECT CONCAT(p.first_name, ' ', p.last_name), p.email
+                FROM appointments a
+                JOIN patients p ON a.patient_id = p.patient_id
+                WHERE a.appointment_id = %s""",
+                (appointment_id,)
+            )
+            data = cursor.fetchone()
+            if not data:
+                messagebox.showerror("Error", "Appointment not found")
+                return
+            patient_name, patient_email = data
+
+            cursor.execute(
                 "DELETE FROM appointments WHERE appointment_id = %s",
                 (appointment_id,)
             )
             self.db_connection.commit()
 
+            subject = "Appointment Cancelled - Grow Up Hospital"
+            body = (
+                f"Dear {patient_name},\n\n"
+                f"Your appointment (ID: {appointment_id}) has been cancelled.\n\n"
+                f"Thank you for choosing Grow Up Hospital."
+            )
+            self.send_email_notification_async(patient_email, subject, body)
             messagebox.showinfo("Success", "Appointment deleted successfully!")
             self.load_staff_appointments(self.current_user_id)
 
         except Error as e:
             self.db_connection.rollback()
             messagebox.showerror("Database Error", f"Failed to delete appointment: {e}")
+        finally:
+            if cursor:
+                cursor.close()
             
     def admin_create_appointment(self):
-        for widget in self.main_frame.winfo_children():
-            widget.destroy()
+        # Get all form data
+        patient_str = self.patient_var.get()
+        doctor_str = self.doctor_var.get()
+        date = self.date_var.get()
+        time = self.time_var.get()
+        status = self.status_var.get()
+        reason = self.reason_text.get("1.0", tk.END).strip()
 
-        canvas = tk.Canvas(self.main_frame, bg="#f0f8ff", highlightthickness=0)
-        scrollbar = ttk.Scrollbar(self.main_frame, orient="vertical", command=canvas.yview)
-        scrollable_frame = tk.Frame(canvas, bg="#f0f8ff", padx=20, pady=20)
+        # Validate inputs
+        if not all([patient_str, doctor_str, date, time, status]):
+            messagebox.showerror("Error", "All fields are required")
+            return
 
-        scrollable_frame.bind(
-            "<Configure>",
-            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
-        )
-        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
-        canvas.configure(yscrollcommand=scrollbar.set)
-
-        canvas.pack(side="left", fill="both", expand=True)
-        scrollbar.pack(side="right", fill="y")
-
-        def on_mousewheel(event):
-            canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
-        canvas.bind_all("<MouseWheel>", on_mousewheel)
-
-        def on_mousewheel_mac(event):
-            if event.num == 4:
-                canvas.yview_scroll(-1, "units")
-            elif event.num == 5:
-                canvas.yview_scroll(1, "units")
-        canvas.bind_all("<Button-4>", on_mousewheel_mac)
-        canvas.bind_all("<Button-5>", on_mousewheel_mac)
-
-        style = ttk.Style()
-        style.configure("TLabel", background="#f0f8ff", foreground="#2c3e50", font=("Arial", 12))
-        style.configure("TCombobox", fieldbackground="#ffffff", background="#ffffff", foreground="#2c3e50", font=("Arial", 12))
-        style.configure("TButton", padding=10, font=("Arial", 12, "bold"))
-
-        tk.Label(scrollable_frame, text="Create Appointment", font=("Arial", 24, "bold"), bg="#f0f8ff", fg="#3498db").grid(row=0, column=0, columnspan=2, pady=20)
-
-        fields = [("Patient ID:", 1), ("Doctor ID:", 2), ("Date (YYYY-MM-DD):", 3), ("Time (HH:MM):", 4)]
-        self.appointment_entries = {}
-        for (label_text, row) in fields:
-            tk.Label(scrollable_frame, text=label_text, font=("Arial", 12), bg="#f0f8ff", fg="#2c3e50").grid(row=row, column=0, pady=8, padx=10, sticky="e")
-            entry = tk.Entry(scrollable_frame, font=("Arial", 12), bg="#ffffff", bd=0, highlightthickness=1, highlightcolor="#2c3e50")
-            entry.grid(row=row, column=1, pady=8, padx=10, sticky="w")
-            self.appointment_entries[label_text] = entry
-
-        submit_btn = ttk.Button(scrollable_frame, text="Submit", style="TButton", command=self.submit_appointment)
-        submit_btn.grid(row=5, column=0, columnspan=2, pady=20)
-        submit_btn.configure(background="#007bff", activebackground="#0056b3")
-
-        back_btn = ttk.Button(scrollable_frame, text="Back", style="TButton", command=self.show_admin_dashboard)
-        back_btn.grid(row=6, column=0, columnspan=2, pady=10)
-        back_btn.configure(background="#e74c3c", activebackground="#c0392b")
-
-    def submit_appointment(self):
-        data = {key: entry.get() for key, entry in self.appointment_entries.items()}
-        cursor = self.db_connection.cursor()
         try:
-            cursor.execute(
-                "INSERT INTO appointments (patient_id, doctor_id, appointment_date, appointment_time) VALUES (%s, %s, %s, %s)",
-                (data["Patient ID:"], data["Doctor ID:"], data["Date (YYYY-MM-DD):"], data["Time (HH:MM):"])
-            )
-            self.db_connection.commit()
-            appointment_id = cursor.lastrowid
-            messagebox.showinfo("Success", "Appointment created successfully!")
-            cursor.execute("SELECT email FROM patients WHERE user_id = %s", (data["Patient ID:"],))
-            patient_email = cursor.fetchone()
-            if patient_email:
-                self.send_appointment_email_async(patient_email[0], "Appointment Confirmation", f"Your appointment is scheduled for {data['Date (YYYY-MM-DD):']} at {data['Time (HH:MM):']} with ID {appointment_id}.")
-            self.show_admin_dashboard()
-        except Error as e:
-            self.db_connection.rollback()
-            messagebox.showerror("Error", f"Failed to create appointment: {e}")
-        finally:
-            cursor.close()
+            # Extract patient ID and doctor ID
+            patient_id = int(patient_str.split("(ID: ")[1].split(")")[0])
+            doctor_id = int(doctor_str.split("(ID: ")[1].split(")")[0])
 
+            # Validate date format
+            datetime.strptime(date, "%Y-%m-%d")
+
+            # Get email addresses
+            cursor = self.db_connection.cursor()
+            cursor.execute("SELECT email, CONCAT(first_name, ' ', last_name) FROM patients WHERE patient_id = %s", (patient_id,))
+            patient_data = cursor.fetchone()
+            cursor.execute("SELECT email, CONCAT(first_name, ' ', last_name) FROM doctors WHERE doctor_id = %s", (doctor_id,))
+            doctor_data = cursor.fetchone()
+
+            if not patient_data or not doctor_data:
+                messagebox.showerror("Error", "Patient or doctor data not found")
+                return
+
+            patient_email, patient_name = patient_data
+            doctor_email, doctor_name = doctor_data
+
+            try:
+                if self.db_connection.in_transaction:
+                    self.db_connection.rollback()
+                
+                self.db_connection.start_transaction()
+                cursor = self.db_connection.cursor()
+                
+                # Insert appointment
+                cursor.execute(
+                    """INSERT INTO appointments 
+                    (patient_id, doctor_id, appointment_date, appointment_time, status, reason) 
+                    VALUES (%s, %s, %s, %s, %s, %s)""",
+                    (patient_id, doctor_id, date, time, status, reason),
+                )
+
+                self.db_connection.commit()
+                messagebox.showinfo("Success", "Appointment created successfully!")
+                self.add_appt_window.destroy()
+                self.load_appointments_data()
+
+                # Send email in a separate thread
+                if patient_email and doctor_email:
+                    threading.Thread(
+                        target=self.send_appointment_email,
+                        args=(patient_email, patient_name, doctor_email, doctor_name, date, time, reason),
+                        daemon=True
+                    ).start()
+
+            except Error as e:
+                self.db_connection.rollback()
+                messagebox.showerror("Database Error", f"Failed to create appointment: {e}")
+            finally:
+                if cursor:
+                    cursor.close()
+
+        except ValueError as e:
+            messagebox.showerror("Error", f"Invalid input: {e}")
+
+    def send_appointment_email(self, patient_email, patient_name, doctor_email, doctor_name, date, time, reason):
+        try:
+            # Configure SMTP server (replace with your SMTP settings)
+            smtp_server = "smtp.gmail.com"
+            smtp_port = 587
+            sender_email = "mubashirabbasedu4@gmail.com"  # Replace with your email
+            sender_password = "rlzfzjdquhfiifsg"      # Replace with your app-specific password
+
+            # Email content
+            subject = "Appointment Confirmation - Grow-Up Hospital"
+            body = f"""
+Dear {patient_name},
+
+Your appointment has been scheduled with {doctor_name} on {date} at {time}.
+Reason: {reason if reason else 'Not specified'}
+
+Best regards,
+Grow-Up Hospital
+"""
+            # Create message for patient
+            msg = MIMEMultipart()
+            msg['From'] = sender_email
+            msg['To'] = patient_email
+            msg['Subject'] = subject
+            msg.attach(MIMEText(body, 'plain'))
+
+            # Create message for doctor
+            doctor_body = f"""
+Dear {doctor_name},
+
+You have a new appointment scheduled with {patient_name} on {date} at {time}.
+Reason: {reason if reason else 'Not specified'}
+
+Best regards,
+Grow-Up Hospital
+"""
+            doctor_msg = MIMEMultipart()
+            doctor_msg['From'] = sender_email
+            doctor_msg['To'] = doctor_email
+            doctor_msg['Subject'] = subject
+            doctor_msg.attach(MIMEText(doctor_body, 'plain'))
+
+            # Connect to SMTP server
+            with smtplib.SMTP(smtp_server, smtp_port) as server:
+                server.starttls()
+                server.login(sender_email, sender_password)
+                server.send_message(msg)
+                server.send_message(doctor_msg)
+
+            self.logger.info(f"Appointment emails sent to {patient_email} and {doctor_email}")
+
+        except Exception as e:
+            self.logger.error(f"Failed to send appointment emails: {e}")
+            # Note: We don't show a messagebox here to avoid UI thread issues
+            
+    # def admin_create_appointment(self):
+    #     # Get all form data
+    #     patient_str = self.patient_var.get()
+    #     doctor_str = self.doctor_var.get()
+    #     date = self.date_var.get()
+    #     time = self.time_var.get()
+    #     status = self.status_var.get()
+    #     reason = self.reason_text.get("1.0", tk.END).strip()
+
+    #     # Validate inputs
+    #     if not all([patient_str, doctor_str, date, time, status]):
+    #         messagebox.showerror("Error", "All fields are required")
+    #         return
+
+    #     try:
+    #         # Extract patient ID from the string (format: "John Doe (ID: 1) - Phone: 1234567890")
+    #         patient_id = int(patient_str.split("(ID: ")[1].split(")")[0])
+            
+    #         # Extract doctor ID from the string (format: "Dr. Smith (ID: 1) - Cardiology")
+    #         doctor_id = int(doctor_str.split("(ID: ")[1].split(")")[0])
+
+    #         # Validate date format
+    #         datetime.strptime(date, "%Y-%m-%d")
+
+    #         cursor = None
+    #         try:
+    #             if self.db_connection.in_transaction:
+    #                 self.db_connection.rollback()
+                
+    #             self.db_connection.start_transaction()
+    #             cursor = self.db_connection.cursor()
+                
+    #             # Insert appointment
+    #             cursor.execute(
+    #                 """INSERT INTO appointments 
+    #                 (patient_id, doctor_id, appointment_date, appointment_time, status, reason) 
+    #                 VALUES (%s, %s, %s, %s, %s, %s)""",
+    #                 (patient_id, doctor_id, date, time, status, reason),
+    #             )
+
+    #             self.db_connection.commit()
+    #             messagebox.showinfo("Success", "Appointment created successfully!")
+    #             self.add_appt_window.destroy()
+    #             self.load_appointments_data()
+
+    #         except Error as e:
+    #             self.db_connection.rollback()
+    #             messagebox.showerror("Database Error", f"Failed to create appointment: {e}")
+    #         finally:
+    #             if cursor:
+    #                 cursor.close()
+
+    #     except ValueError as e:
+    #         messagebox.showerror("Error", f"Invalid input: {e}")
+            
     def show_manage_patients(self):
         # Clear content frame
         for widget in self.admin_content_frame.winfo_children():
