@@ -32,6 +32,8 @@ import logging
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+import threading
+import time
 
 class HospitalManagementSystem:
     def __init__(self, root):
@@ -3502,307 +3504,60 @@ class HospitalManagementSystem:
             self.current_page = new_page
             self.load_appointments_data()
 
-    # def show_add_appointment_form(self):
-    #     # Create the appointment window
-    #     self.add_appt_window = tk.Toplevel(self.root)
-    #     self.add_appt_window.title("Admin: Add New Appointment")
-    #     self.add_appt_window.geometry("650x650")
-    #     self.add_appt_window.resizable(False, False)
-        
-    #     # Configure window styling
-    #     bg_color = "#f0f8ff"
-    #     self.add_appt_window.configure(bg=bg_color)
-        
-    #     # Header frame
-    #     header_frame = tk.Frame(self.add_appt_window, bg="#3498db", height=70)
-    #     header_frame.pack(fill=tk.X)
-    #     tk.Label(
-    #         header_frame,
-    #         text="Create New Appointment",
-    #         font=("Arial", 18, "bold"),
-    #         bg="#3498db",
-    #         fg="white"
-    #     ).pack(pady=20)
-
-    #     # Main form container
-    #     form_frame = tk.Frame(self.add_appt_window, bg=bg_color, padx=25, pady=25)
-    #     form_frame.pack(fill=tk.BOTH, expand=True)
-
-    #     # Patient Selection
-    #     tk.Label(
-    #         form_frame,
-    #         text="Select Patient:",
-    #         font=("Arial", 12, "bold"),
-    #         bg=bg_color
-    #     ).grid(row=0, column=0, pady=10, sticky="e")
-
-    #     self.patient_var = tk.StringVar()
-    #     patient_cb = ttk.Combobox(
-    #         form_frame,
-    #         textvariable=self.patient_var,
-    #         font=("Arial", 12),
-    #         state="readonly",
-    #         width=35
-    #     )
-    #     patient_cb.grid(row=0, column=1, pady=10, padx=10, sticky="w")
-
-    #     # Doctor Selection
-    #     tk.Label(
-    #         form_frame,
-    #         text="Select Doctor:",
-    #         font=("Arial", 12, "bold"),
-    #         bg=bg_color
-    #     ).grid(row=1, column=0, pady=10, sticky="e")
-
-    #     self.doctor_var = tk.StringVar()
-    #     doctor_cb = ttk.Combobox(
-    #         form_frame,
-    #         textvariable=self.doctor_var,
-    #         font=("Arial", 12),
-    #         state="readonly",
-    #         width=35
-    #     )
-    #     doctor_cb.grid(row=1, column=1, pady=10, padx=10, sticky="w")
-
-    #     # Load patients and doctors
-    #     try:
-    #         cursor = self.db_connection.cursor()
-            
-    #         # Load patients in format: "John Doe (ID: 1) - Phone: 1234567890"
-    #         cursor.execute("""
-    #             SELECT p.patient_id, p.first_name, p.last_name, p.phone 
-    #             FROM patients p
-    #             JOIN users u ON p.user_id = u.user_id
-    #             ORDER BY p.last_name, p.first_name
-    #         """)
-    #         patients = [
-    #             f"{first_name} {last_name} (ID: {id}) - Phone: {phone}" 
-    #             for id, first_name, last_name, phone in cursor.fetchall()
-    #         ]
-    #         patient_cb['values'] = patients
-            
-    #         # Load doctors in format: "Dr. Smith (ID: 1) - Cardiology"
-    #         cursor.execute("""
-    #             SELECT doctor_id, first_name, last_name, specialization 
-    #             FROM doctors 
-    #             ORDER BY last_name, first_name
-    #         """)
-    #         doctors = [
-    #             f"Dr. {first_name} {last_name} (ID: {id}) - {specialization}" 
-    #             for id, first_name, last_name, specialization in cursor.fetchall()
-    #         ]
-    #         doctor_cb['values'] = doctors
-            
-    #         if not patients:
-    #             messagebox.showwarning("Warning", "No patients found in database")
-    #         if not doctors:
-    #             messagebox.showwarning("Warning", "No doctors found in database")
-                
-    #         if patients:
-    #             patient_cb.current(0)
-    #         if doctors:
-    #             doctor_cb.current(0)
-                
-    #     except Error as e:
-    #         messagebox.showerror("Database Error", f"Failed to load data: {str(e)}")
-    #         self.add_appt_window.destroy()
-    #         return
-
-    #     # Date Selection
-    #     tk.Label(
-    #         form_frame,
-    #         text="Appointment Date:",
-    #         font=("Arial", 12, "bold"),
-    #         bg=bg_color
-    #     ).grid(row=2, column=0, pady=10, sticky="e")
-
-    #     self.date_var = tk.StringVar()
-    #     date_entry = tk.Entry(
-    #         form_frame,
-    #         textvariable=self.date_var,
-    #         font=("Arial", 12),
-    #         width=35
-    #     )
-    #     date_entry.grid(row=2, column=1, pady=10, padx=10, sticky="w")
-    #     date_entry.insert(0, datetime.now().strftime("%Y-%m-%d"))  # Default to today
-
-    #     # Time Selection
-    #     tk.Label(
-    #         form_frame,
-    #         text="Appointment Time:",
-    #         font=("Arial", 12, "bold"),
-    #         bg=bg_color
-    #     ).grid(row=3, column=0, pady=10, sticky="e")
-
-    #     self.time_var = tk.StringVar()
-    #     time_cb = ttk.Combobox(
-    #         form_frame,
-    #         textvariable=self.time_var,
-    #         font=("Arial", 12),
-    #         values=[f"{h:02d}:{m:02d}" for h in range(8, 18) for m in [0, 30]],
-    #         state="readonly",
-    #         width=35
-    #     )
-    #     time_cb.grid(row=3, column=1, pady=10, padx=10, sticky="w")
-    #     time_cb.current(0)  # Default to first time slot
-
-    #     # Status Selection (Admin only)
-    #     tk.Label(
-    #         form_frame,
-    #         text="Appointment Status:",
-    #         font=("Arial", 12, "bold"),
-    #         bg=bg_color
-    #     ).grid(row=4, column=0, pady=10, sticky="e")
-
-    #     self.status_var = tk.StringVar(value="Scheduled")
-    #     status_cb = ttk.Combobox(
-    #         form_frame,
-    #         textvariable=self.status_var,
-    #         font=("Arial", 12),
-    #         values=["Scheduled", "Confirmed", "Completed", "Cancelled"],
-    #         state="readonly",
-    #         width=35
-    #     )
-    #     status_cb.grid(row=4, column=1, pady=10, padx=10, sticky="w")
-
-    #     # Reason for Visit
-    #     tk.Label(
-    #         form_frame,
-    #         text="Reason:",
-    #         font=("Arial", 12, "bold"),
-    #         bg=bg_color
-    #     ).grid(row=5, column=0, pady=10, sticky="ne")
-
-    #     self.reason_text = tk.Text(
-    #         form_frame,
-    #         font=("Arial", 12),
-    #         height=5,
-    #         width=35,
-    #         wrap=tk.WORD
-    #     )
-    #     self.reason_text.grid(row=5, column=1, pady=10, padx=10, sticky="w")
-
-    #     # Button Frame
-    #     button_frame = tk.Frame(form_frame, bg=bg_color)
-    #     button_frame.grid(row=6, column=0, columnspan=2, pady=20)
-
-    #     # Submit Button
-    #     submit_btn = tk.Button(
-    #         button_frame,
-    #         text="CREATE APPOINTMENT",
-    #         font=("Arial", 12, "bold"),
-    #         bg="#4CAF50",
-    #         fg="white",
-    #         width=25,
-    #         height=2,
-    #         command=self.admin_create_appointment
-    #     )
-    #     submit_btn.pack(side=tk.RIGHT, padx=10)
-
-    #     # Cancel Button
-    #     cancel_btn = tk.Button(
-    #         button_frame,
-    #         text="CANCEL",
-    #         font=("Arial", 12),
-    #         bg="#f44336",
-    #         fg="white",
-    #         width=15,
-    #         height=2,
-    #         command=self.add_appt_window.destroy
-    #     )
-    #     cancel_btn.pack(side=tk.LEFT, padx=10)
-    
     def show_add_appointment_form(self):
-        # Create a new top-level window
-        add_appt_window = tk.Toplevel(self.root)
-        add_appt_window.title("Add New Appointment")
-        add_appt_window.geometry("500x500")
-        add_appt_window.configure(bg="#f0f8ff")
+        add_window = tk.Toplevel(self.root)
+        add_window.title("Add New Appointment")
+        add_window.geometry("600x500")
+        self.add_appt_window = add_window
 
-        # Header
-        header_frame = tk.Frame(add_appt_window, bg="#3498db", height=60)
-        header_frame.pack(fill=tk.X)
-        tk.Label(
-            header_frame,
-            text="Add New Appointment",
-            font=("Arial", 18, "bold"),
-            bg="#3498db",
-            fg="white"
-        ).pack(pady=15)
+        tk.Label(add_window, text="Add New Appointment", font=("Arial", 18, "bold")).pack(pady=10)
 
-        # Form frame
-        form_frame = tk.Frame(add_appt_window, bg="#f0f8ff", padx=20, pady=20)
+        form_frame = tk.Frame(add_window, bg="#f0f8ff", padx=20, pady=20)
         form_frame.pack(fill=tk.BOTH, expand=True)
 
-        # Patient selection
+        # Patient
         tk.Label(form_frame, text="Patient:", font=("Arial", 12), bg="#f0f8ff").grid(row=0, column=0, pady=10, sticky="e")
         self.patient_var = tk.StringVar()
-        cursor = self.db_connection.cursor()
-        cursor.execute("SELECT patient_id, CONCAT(first_name, ' ', last_name) FROM patients")
-        patients = [f"{name} (ID: {id})" for id, name in cursor.fetchall()]
-        self.patient_combobox = ttk.Combobox(
-            form_frame,
-            textvariable=self.patient_var,
-            values=patients,
-            font=("Arial", 12),
-            state="readonly"
-        )
-        self.patient_combobox.grid(row=0, column=1, pady=10, sticky="w")
-        if patients:
-            self.patient_combobox.current(0)
+        try:
+            cursor = self.db_connection.cursor()
+            cursor.execute("SELECT patient_id, CONCAT(first_name, ' ', last_name) FROM patients")
+            patients = [f"{name} (ID: {id})" for id, name in cursor.fetchall()]
+            patient_combobox = ttk.Combobox(form_frame, textvariable=self.patient_var, values=patients, state="readonly", font=("Arial", 12), width=30)
+            patient_combobox.grid(row=0, column=1, pady=10, sticky="w")
+            if patients:
+                patient_combobox.current(0)
+        except Error as e:
+            messagebox.showerror("Database Error", f"Failed to load patients: {e}")
 
-        # Doctor selection
+        # Doctor
         tk.Label(form_frame, text="Doctor:", font=("Arial", 12), bg="#f0f8ff").grid(row=1, column=0, pady=10, sticky="e")
         self.doctor_var = tk.StringVar()
-        cursor.execute("SELECT doctor_id, CONCAT(first_name, ' ', last_name) FROM doctors")
-        doctors = [f"{name} (ID: {id})" for id, name in cursor.fetchall()]
-        self.doctor_combobox = ttk.Combobox(
-            form_frame,
-            textvariable=self.doctor_var,
-            values=doctors,
-            font=("Arial", 12),
-            state="readonly"
-        )
-        self.doctor_combobox.grid(row=1, column=1, pady=10, sticky="w")
-        if doctors:
-            self.doctor_combobox.current(0)
+        try:
+            cursor.execute("SELECT doctor_id, CONCAT(first_name, ' ', last_name) FROM doctors")
+            doctors = [f"{name} (ID: {id})" for id, name in cursor.fetchall()]
+            doctor_combobox = ttk.Combobox(form_frame, textvariable=self.doctor_var, values=doctors, state="readonly", font=("Arial", 12), width=30)
+            doctor_combobox.grid(row=1, column=1, pady=10, sticky="w")
+            if doctors:
+                doctor_combobox.current(0)
+        except Error as e:
+            messagebox.showerror("Database Error", f"Failed to load doctors: {e}")
 
         # Date
-        tk.Label(form_frame, text="Date:", font=("Arial", 12), bg="#f0f8ff").grid(row=2, column=0, pady=10, sticky="e")
-        self.date_var = tk.StringVar()
-        date_entry = DateEntry(
-            form_frame,
-            textvariable=self.date_var,
-            font=("Arial", 12),
-            date_pattern='yyyy-mm-dd',
-            width=12
-        )
+        tk.Label(form_frame, text="Date (YYYY-MM-DD):", font=("Arial", 12), bg="#f0f8ff").grid(row=2, column=0, pady=10, sticky="e")
+        self.date_var = tk.StringVar(value=datetime.now().strftime("%Y-%m-%d"))
+        date_entry = tk.Entry(form_frame, textvariable=self.date_var, font=("Arial", 12))
         date_entry.grid(row=2, column=1, pady=10, sticky="w")
 
         # Time
-        tk.Label(form_frame, text="Time:", font=("Arial", 12), bg="#f0f8ff").grid(row=3, column=0, pady=10, sticky="e")
-        self.time_var = tk.StringVar()
-        time_combobox = ttk.Combobox(
-            form_frame,
-            textvariable=self.time_var,
-            values=[f"{h:02d}:{m:02d}" for h in range(8, 18) for m in [0, 30]],
-            font=("Arial", 12),
-            state="readonly"
-        )
+        tk.Label(form_frame, text="Time (HH:MM):", font=("Arial", 12), bg="#f0f8ff").grid(row=3, column=0, pady=10, sticky="e")
+        self.time_var = tk.StringVar(value="08:00")
+        time_combobox = ttk.Combobox(form_frame, textvariable=self.time_var, values=[f"{h:02d}:{m:02d}" for h in range(8, 18) for m in [0, 30]], state="readonly", font=("Arial", 12), width=10)
         time_combobox.grid(row=3, column=1, pady=10, sticky="w")
-        if time_combobox['values']:
-            time_combobox.current(0)
 
         # Status
         tk.Label(form_frame, text="Status:", font=("Arial", 12), bg="#f0f8ff").grid(row=4, column=0, pady=10, sticky="e")
         self.status_var = tk.StringVar(value="Scheduled")
-        status_combobox = ttk.Combobox(
-            form_frame,
-            textvariable=self.status_var,
-            values=["Scheduled", "Confirmed", "Completed", "Cancelled"],
-            font=("Arial", 12),
-            state="readonly"
-        )
+        status_combobox = ttk.Combobox(form_frame, textvariable=self.status_var, values=["Scheduled", "Confirmed", "Completed", "Cancelled"], state="readonly", font=("Arial", 12), width=15)
         status_combobox.grid(row=4, column=1, pady=10, sticky="w")
 
         # Reason
@@ -3810,34 +3565,16 @@ class HospitalManagementSystem:
         self.reason_text = tk.Text(form_frame, font=("Arial", 12), height=5, width=40, wrap=tk.WORD)
         self.reason_text.grid(row=5, column=1, pady=10, sticky="w")
 
-        # Button frame
-        button_frame = tk.Frame(form_frame, bg="#f0f8ff")
-        button_frame.grid(row=6, column=0, columnspan=2, pady=20)
-
         # Submit button
         submit_btn = tk.Button(
-            button_frame,
-            text="Add Appointment",
+            form_frame,
+            text="Create Appointment",
             font=("Arial", 12, "bold"),
-            bg="#3498db",
+            bg="#4CAF50",
             fg="white",
-            command=lambda: self.admin_create_appointment()
+            command=self.admin_create_appointment
         )
-        submit_btn.pack(side=tk.LEFT, padx=10)
-
-        # Cancel button
-        cancel_btn = tk.Button(
-            button_frame,
-            text="Cancel",
-            font=("Arial", 12),
-            bg="#e74c3c",
-            fg="white",
-            command=add_appt_window.destroy
-        )
-        cancel_btn.pack(side=tk.LEFT, padx=10)
-
-        # Ensure cursor is closed
-        cursor.close()
+        submit_btn.grid(row=6, column=0, columnspan=2, pady=20)
     # def show_add_appointment_form(self, is_admin=False):
     #     self.add_appt_window = tk.Toplevel(self.root)
     #     self.add_appt_window.title("Admin: Add New Appointment" if is_admin else "Book Appointment")
